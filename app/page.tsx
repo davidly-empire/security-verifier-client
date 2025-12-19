@@ -1,65 +1,102 @@
-import Image from "next/image";
+'use client';
+
+// app/page.tsx
+import { KpiCards } from './components/home-ui/KpiCards';
+import { ActiveAlerts } from './components/home-ui/ActiveAlerts';
+import { TodaySnapshot } from './components/home-ui/TodaySnapshot';
+import { RecentActivity } from './components/home-ui/RecentActivity';
+
+// Mock data (unchanged)
+const kpiData = {
+  guardsOnDuty: 12,
+  activePatrols: 8,
+  missedScans: 3,
+  emergencyAlerts: 1,
+};
+
+const alertsData = [
+  { id: 1, type: 'Emergency', message: 'Unauthorized access detected at North Gate', time: '5 min ago', severity: 'critical' },
+  { id: 2, type: 'Missed Scan', message: 'Guard #102 missed checkpoint B3', time: '15 min ago', severity: 'warning' },
+  { id: 3, type: 'Missed Scan', message: 'Guard #104 missed checkpoint D1', time: '25 min ago', severity: 'warning' },
+  { id: 4, type: 'System', message: 'Camera offline at South Entrance', time: '1 hour ago', severity: 'warning' },
+  { id: 5, type: 'Emergency', message: 'Fire alarm triggered in Building A', time: '2 hours ago', severity: 'critical' },
+];
+
+const todaySnapshotData = {
+  patrolsCompleted: 14,
+  patrolsInProgress: 8,
+  patrolsMissed: 3,
+  avgScanCompliance: 92,
+};
+
+const recentActivityData = [
+  { id: 1, time: '10:45 AM', type: 'Patrol Completed', guard: 'John Smith', description: 'Completed perimeter check with all scans verified' },
+  { id: 2, time: '10:30 AM', type: 'Alert Resolved', guard: 'Admin', description: 'False alarm at Building B resolved' },
+  { id: 3, time: '10:15 AM', type: 'Guard Check-in', guard: 'Mike Wilson', description: 'Started Parking Lot Security patrol' },
+  { id: 4, time: '09:45 AM', type: 'Emergency Alert', guard: 'System', description: 'Unauthorized access attempt at North Gate' },
+  { id: 5, time: '09:30 AM', type: 'Patrol Started', guard: 'Sarah Johnson', description: 'Started Building A Patrol route' },
+];
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+        
+        {/* Header */}
+        <div className="mb-8 flex flex-col gap-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-800">
+            Security Operations Dashboard
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-sm text-slate-500">
+            Real-time overview of patrols, alerts, and system activity
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        {/* KPI Section */}
+        <section className="mb-8">
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <KpiCards data={kpiData} />
+          </div>
+        </section>
+
+        {/* Active Alerts */}
+        <section className="mb-8">
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Active Alerts
+              </h2>
+              <span className="text-xs text-slate-500">Last 24h</span>
+            </div>
+            <ActiveAlerts alerts={alertsData} />
+          </div>
+        </section>
+
+        {/* Today's Snapshot */}
+        <section className="mb-8">
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Today's Snapshot
+              </h2>
+              <span className="text-xs text-slate-500">Daily performance</span>
+            </div>
+            <TodaySnapshot data={todaySnapshotData} />
+          </div>
+        </section>
+
+        {/* Recent Activity */}
+        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-800">
+              Recent Activity
+            </h2>
+            <span className="text-xs text-slate-500">System log</span>
+          </div>
+          <RecentActivity activities={recentActivityData} />
+        </section>
+
+      </div>
     </div>
   );
 }

@@ -1,66 +1,61 @@
-// app/components/navbar/page.tsx
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Menu, X, User, Shield } from 'lucide-react';
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { Menu, X, User, Shield } from 'lucide-react'
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/app/components/ui/dropdown-menu';
-
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@/app/components/ui/button'
 
 const Navbar: React.FC = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const pathname = usePathname();
+  const pathname = usePathname()
+  const router = useRouter()
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+
+  /* ================= NAV ITEMS ================= */
 
   const navItems = [
-  { name: 'Dashboard', href: '/dashboard' },
-  { name: 'Scanpoints', href: '/scan-points' },
-  { name: 'QR', href: '/dashboard/qr-crud' }, // ✅ ADD THIS
-  { name: 'Security Activities', href: '/security-activities' },
-  { name: 'Security Info', href: '/security-info' },
-  { name: 'Add Users', href: '/users' },
-  { name: 'Reports', href: '/reports' },
-];
+    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'Scanpoints', href: '/scan-points' },
+    { name: 'QR', href: '/dashboard/qr-crud' },
+    { name: 'Security Activities', href: '/security-activity' },
+    { name: 'Security Info', href: '/security-info' },
+    { name: 'Add Users', href: '/user-crud' },
+    { name: 'Reports', href: '/report-download' },
+  ]
 
+  /* ================= ACTIVE ROUTE ================= */
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/' || pathname === '/dashboard';
-    return pathname === href;
-  };
+    if (href === '/dashboard') {
+      return pathname === '/' || pathname === '/dashboard'
+    }
+    return pathname === href
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#080883] shadow-sm">
-      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
 
-        {/* Logo */}
+        {/* ================= LOGO (HOME) ================= */}
         <Link
-          href="/dashboard"
-          className="flex items-center space-x-2 transition-all duration-200 hover:opacity-90"
+          href="/"
+          className="flex items-center gap-2 text-white hover:opacity-90"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white/20 text-white
-                          transition-all duration-200 hover:shadow-md">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white/20">
             <Shield className="h-6 w-6" />
           </div>
-          <span className="text-lg font-semibold text-white">
-            Security-Verifier
-          </span>
+          <span className="text-lg font-semibold">Security-Verifier</span>
         </Link>
 
-        {/* Hamburger — SHOW <= 1050px */}
+        {/* ================= MOBILE MENU BUTTON ================= */}
         <Button
           variant="ghost"
           size="icon"
-          className="max-[1050px]:flex hidden transition-all duration-200
-                     hover:-translate-y-[1px] hover:shadow-md"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="max-[1050px]:flex hidden"
+          onClick={() => setIsMobileMenuOpen((prev) => !prev)}
         >
           {isMobileMenuOpen ? (
             <X className="h-6 w-6 text-white" />
@@ -69,14 +64,13 @@ const Navbar: React.FC = () => {
           )}
         </Button>
 
-        {/* Desktop Nav — SHOW > 1050px */}
+        {/* ================= DESKTOP NAV ================= */}
         <nav className="hidden min-[1051px]:flex items-center gap-1 rounded-full bg-white px-2 py-1 shadow-sm">
           {navItems.map((item) => (
             <Link
               key={item.name}
               href={item.href}
-              className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200
-                hover:-translate-y-[1px] hover:shadow-sm
+              className={`px-4 py-2 text-sm font-medium rounded-full transition
                 ${
                   isActive(item.href)
                     ? 'bg-gray-100 text-[#080883]'
@@ -88,87 +82,58 @@ const Navbar: React.FC = () => {
             </Link>
           ))}
 
-          {/* Avatar inside ellipse */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="ml-1 flex h-10 w-10 items-center justify-center rounded-full
-                           bg-[#080883]/10 transition-all duration-200
-                           hover:-translate-y-[1px] hover:shadow-md"
-              >
-                <User className="h-5 w-5 text-[#080883]" />
-              </button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem className="cursor-pointer">Profile</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">Settings</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-red-600">
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* ================= USER AVATAR (HOME) ================= */}
+          <div className="relative ml-1">
+            <button
+              onClick={() => router.push('/')}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#080883]/10 hover:shadow"
+            >
+              <User className="h-5 w-5 text-[#080883]" />
+            </button>
+          </div>
         </nav>
       </div>
 
-      {/* MOBILE MENU — ONLY <= 1050px */}
+      {/* ================= MOBILE MENU ================= */}
       {isMobileMenuOpen && (
-        <div className="max-[1050px]:block hidden bg-white border-t">
-          <div className="px-4 py-4 space-y-4">
+        <div className="max-[1050px]:block hidden border-t bg-white">
+          <div className="px-4 py-4 space-y-3">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block rounded-md px-3 py-2 font-medium
+                  ${
+                    isActive(item.href)
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }
+                `}
+              >
+                {item.name}
+              </Link>
+            ))}
 
-            {/* Mobile Avatar */}
-            <div className="flex items-center gap-3 pb-4 border-b">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200">
-                <User className="h-6 w-6 text-gray-700" />
-              </div>
-              <div>
-                <p className="font-medium">Admin User</p>
-                <p className="text-sm text-gray-500">
-                  admin@security-verifier.com
-                </p>
-              </div>
-            </div>
-
-            {/* Mobile Nav */}
-            <div className="space-y-1">
-              {navItems.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-all
-                    hover:-translate-y-[1px]
-                    ${
-                      isActive(item.href)
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </div>
-
-            {/* Mobile Actions */}
-            <div className="pt-4 border-t space-y-1">
-              <button className="w-full text-left px-3 py-2 rounded-md transition hover:bg-gray-50">
-                Profile
+            <div className="border-t pt-3">
+              <button
+                onClick={() => router.push('/')}
+                className="block w-full text-left px-3 py-2 hover:bg-gray-50"
+              >
+                Home
               </button>
-              <button className="w-full text-left px-3 py-2 rounded-md transition hover:bg-gray-50">
+              <button className="block w-full text-left px-3 py-2 hover:bg-gray-50">
                 Settings
               </button>
-              <button className="w-full text-left px-3 py-2 rounded-md text-red-600 transition hover:bg-red-50">
+              <button className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">
                 Log out
               </button>
             </div>
-
           </div>
         </div>
       )}
     </header>
-  );
-};
+  )
+}
 
-export default Navbar;
+export default Navbar

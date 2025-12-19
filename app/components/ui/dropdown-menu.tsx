@@ -1,16 +1,26 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, ReactNode } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { cn } from "@/lib/utils";
 
-export function DropdownMenu({ children }: { children: React.ReactNode }) {
-  return <Menu as="div" className="relative inline-block text-left">{children}</Menu>;
+export function DropdownMenu({ children }: { children: ReactNode }) {
+  return (
+    <Menu as="div" className="relative inline-block text-left">
+      {children}
+    </Menu>
+  );
 }
 
-export function DropdownMenuTrigger({ children }: any) {
+export function DropdownMenuTrigger({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
-    <Menu.Button as="div" className="cursor-pointer">
+    <Menu.Button
+      className="cursor-pointer bg-transparent border-none p-0"
+    >
       {children}
     </Menu.Button>
   );
@@ -20,7 +30,7 @@ export function DropdownMenuContent({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
@@ -49,15 +59,19 @@ export function DropdownMenuItem({
   children,
   className,
   ...props
-}: any) {
+}: {
+  children: ReactNode;
+  className?: string;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <Menu.Item>
       {({ active }) => (
         <button
           {...props}
+          type="button"
           className={cn(
             "w-full px-4 py-2 text-left text-sm",
-            active ? "bg-gray-100" : "",
+            active && "bg-gray-100",
             className
           )}
         >
@@ -68,6 +82,6 @@ export function DropdownMenuItem({
   );
 }
 
-export const DropdownMenuSeparator = () => (
-  <div className="my-1 h-px bg-gray-200" />
-);
+export function DropdownMenuSeparator() {
+  return <div className="my-1 h-px bg-gray-200" />;
+}

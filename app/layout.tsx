@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-import Navbar from "@/app/components/navbar/page";
+import NavbarClient from "@/app/components/navbar/NavbarClient";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,15 +27,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`
+          ${geistSans.variable}
+          ${geistMono.variable}
+          min-h-screen
+          bg-slate-50
+          text-slate-900
+          antialiased
+        `}
       >
-        {/* NAVBAR */}
-        <Navbar />
+        {/* Navbar */}
+        <NavbarClient />
 
-        {/* Page content spacing (keeps content below navbar) */}
-        <main className="pt-28">
+        {/* Page Content */}
+        <main className="pt-28 min-h-[calc(100vh-7rem)]">
           {children}
         </main>
       </body>
