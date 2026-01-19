@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ScanPointsTable } from "@/app/components/scan/ScanPointsTable";
-import { ScanPointForm, ScanPoint } from "@/app/components/scan/ScanPointForm";
+import { ScanPointsTable, ScanPoint } from "@/app/components/scan/ScanPointsTable";
+import { ScanPointForm } from "@/app/components/scan/ScanPointForm";
+
 import {
   getScanPointsByFactory,
   createScanPoint,
@@ -20,14 +21,10 @@ export default function ScanPointsPage() {
   const [selectedFactory, setSelectedFactory] = useState("");
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingScanPoint, setEditingScanPoint] =
-    useState<ScanPoint | null>(null);
+  const [editingScanPoint, setEditingScanPoint] = useState<ScanPoint | null>(null);
 
-  const [statusFilter, setStatusFilter] =
-    useState<"All" | "Active" | "Inactive">("All");
-
-  const [priorityFilter, setPriorityFilter] =
-    useState<"All" | "Low" | "Medium" | "High">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
+  const [priorityFilter, setPriorityFilter] = useState<"All" | "Low" | "Medium" | "High">("All");
 
   /* ================= LOAD FACTORIES ================= */
   useEffect(() => {
@@ -35,10 +32,9 @@ export default function ScanPointsPage() {
       .then((res) => res.json())
       .then((data) => {
         setFactories(data);
-        if (data.length > 0) {
-          setSelectedFactory(data[0].id);
-        }
-      });
+        if (data.length > 0) setSelectedFactory(data[0].id);
+      })
+      .catch((err) => console.error("Failed to load factories:", err));
   }, []);
 
   /* ================= LOAD SCAN POINTS ================= */
@@ -46,22 +42,20 @@ export default function ScanPointsPage() {
     if (!selectedFactory) return;
 
     getScanPointsByFactory(selectedFactory)
-      .then((res) => {
-        const data: ScanPoint[] = Array.isArray(res.data)
-          ? res.data
-          : res.data?.data ?? [];
-
-        setScanPoints(data);
+      .then((data) => {
+        setScanPoints(data || []);
       })
-      .catch(() => setScanPoints([]));
+      .catch((err) => {
+        console.error("Failed to load scan points:", err);
+        setScanPoints([]);
+      });
   }, [selectedFactory]);
 
   /* ================= FILTER ================= */
   const visibleScanPoints = scanPoints.filter((sp) => {
     if (statusFilter === "Active" && !sp.is_active) return false;
     if (statusFilter === "Inactive" && sp.is_active) return false;
-    if (priorityFilter !== "All" && sp.risk_level !== priorityFilter)
-      return false;
+    if (priorityFilter !== "All" && sp.risk_level !== priorityFilter) return false;
     return true;
   });
 
@@ -125,12 +119,14 @@ export default function ScanPointsPage() {
           setIsFormOpen(true);
         }}
         onDisable={async (id) => {
-          await updateScanPoint(id, { is_active: false });
-          setScanPoints((prev) =>
-            prev.map((sp) =>
-              sp.id === id ? { ...sp, is_active: false } : sp
-            )
-          );
+          try {
+            const updated = await updateScanPoint(id, { is_active: false });
+            setScanPoints((prev) =>
+              prev.map((sp) => (sp.id === id ? { ...sp, ...updated } : sp))
+            );
+          } catch (err) {
+            console.error("Failed to disable scan point:", err);
+          }
         }}
       />
 
@@ -140,26 +136,22 @@ export default function ScanPointsPage() {
           scanPoint={editingScanPoint}
           onClose={() => setIsFormOpen(false)}
           onSubmit={async (data) => {
-            if (editingScanPoint) {
-              const res = await updateScanPoint(
-                editingScanPoint.id,
-                data
-              );
-              setScanPoints((prev) =>
-                prev.map((sp) =>
-                  sp.id === editingScanPoint.id ? res.data : sp
-                )
-              );
-            } else {
-              const res = await createScanPoint({
-                ...data,
-                factory_id: selectedFactory,
-              });
-              setScanPoints((prev) => [...prev, res.data]);
+            try {
+              if (editingScanPoint) {
+                const updated = await updateScanPoint(editingScanPoint.id, data);
+                setScanPoints((prev) =>
+                  prev.map((sp) => (sp.id === editingScanPoint.id ? { ...sp, ...updated } : sp))
+                );
+              } else {
+                const created = await createScanPoint({ ...data, factory_id: selectedFactory });
+                setScanPoints((prev) => [...prev, created]);
+              }
+            } catch (err) {
+              console.error("Failed to save scan point:", err);
+            } finally {
+              setIsFormOpen(false);
+              setEditingScanPoint(null);
             }
-
-            setIsFormOpen(false);
-            setEditingScanPoint(null);
           }}
         />
       )}
