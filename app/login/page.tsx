@@ -2,52 +2,74 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShieldCheck, Eye, EyeOff, Lock, User, Sparkles, ArrowRight } from 'lucide-react'
+import { ShieldCheck, Eye, EyeOff, Sparkles } from 'lucide-react'
 import { Button } from '@/app/components/ui/button'
 import * as THREE from 'three'
 
-// ==========================================
-// ORIGINAL LOGIC PRESERVED BELOW (Enhanced)
-// ==========================================
 export default function LoginPage() {
   const router = useRouter()
 
-  // --- State ---
   const [userId, setUserId] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // --- Refs for Animations ---
   const formRef = useRef<HTMLDivElement>(null)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  // --- ORIGINAL LOGIC: handleLogin ---
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    setTimeout(() => {
-      // 🔐 UPDATED TEMP LOGIN CREDENTIALS
-      if (userId === '1234' && password === '1234') {
-        router.push('/dashboard')
-      } else {
-        setError('Invalid User ID or Password')
-        if (formRef.current) {
-          formRef.current.classList.add('animate-[shake_0.5s_ease-in-out]')
-          setTimeout(
-            () => formRef.current?.classList.remove('animate-[shake_0.5s_ease-in-out]'),
-            500
-          )
-        }
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      if (!apiUrl) throw new Error('API URL not defined in .env')
+
+      const res = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          user_pin: password,
+        }),
+      })
+
+      if (!res.ok) {
+        // handle backend validation errors
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.detail || 'Invalid User ID or Password')
       }
+
+      const data = await res.json()
+
+      // ✅ Store token & user info in localStorage
+      localStorage.setItem('access_token', data.access_token) // must match Dashboard fetch
+      localStorage.setItem('role', data.role)
+      localStorage.setItem('name', data.name)
+
+      router.push('/dashboard')
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch. Check backend connection.')
+
+      // Shake animation on error
+      if (formRef.current) {
+        formRef.current.classList.add('animate-[shake_0.5s_ease-in-out]')
+        setTimeout(
+          () => formRef.current?.classList.remove('animate-[shake_0.5s_ease-in-out]'),
+          500
+        )
+      }
+    } finally {
       setLoading(false)
-    }, 800)
+    }
   }
 
-  // --- Animation Effects (Entry) ---
+  // Input fade-in animation
   useEffect(() => {
     const inputs = inputRefs.current
     inputs.forEach((input, index) => {
@@ -65,10 +87,7 @@ export default function LoginPage() {
 
   return (
     <>
-      {/* Hide navbar on this page */}
-      <div className="hidden">
-        {/* NavbarClient removed intentionally */}
-      </div>
+      <div className="hidden">{/* Navbar intentionally hidden */}</div>
 
       <div id="canvas-container" className="fixed inset-0 z-0 bg-slate-950" />
       <div className="fixed inset-0 z-0 bg-gradient-to-br from-blue-900/30 via-slate-950/50 to-indigo-900/30 pointer-events-none" />
@@ -94,7 +113,7 @@ export default function LoginPage() {
             <div>
               <label className="text-xs text-blue-100">User ID</label>
               <input
-                ref={(el) => (inputRefs.current[0] = el)}
+                ref={(el) => { inputRefs.current[0] = el }}
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 className="w-full mt-2 px-4 py-3 bg-slate-900/40 border border-white/10 rounded-xl text-white"
@@ -105,7 +124,7 @@ export default function LoginPage() {
               <label className="text-xs text-blue-100">Password</label>
               <div className="relative">
                 <input
-                  ref={(el) => (inputRefs.current[1] = el)}
+                  ref={(el) => { inputRefs.current[1] = el }}
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -128,9 +147,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-xs text-center text-slate-500">
-            © 2025 Security Verifier
-          </p>
+          <p className="mt-6 text-xs text-center text-slate-500">© 2025 Security Verifier</p>
         </div>
       </div>
 
@@ -141,7 +158,7 @@ export default function LoginPage() {
 }
 
 // ==========================================
-// 3D SCENE EFFECTS (Three.js)
+// 3D Background
 // ==========================================
 const SceneEffect = () => {
   useEffect(() => {
@@ -157,7 +174,12 @@ const SceneEffect = () => {
     container.appendChild(renderer.domElement)
 
     const geometry = new THREE.IcosahedronGeometry(15, 1)
-    const material = new THREE.MeshBasicMaterial({ color: 0x3b82f6, wireframe: true, opacity: 0.05, transparent: true })
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x3b82f6,
+      wireframe: true,
+      opacity: 0.05,
+      transparent: true,
+    })
     const mesh = new THREE.Mesh(geometry, material)
     scene.add(mesh)
 
