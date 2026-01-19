@@ -66,20 +66,27 @@ export default function ScanPointsPage() {
      FETCH FROM BACKEND
   ========================== */
   useEffect(() => {
-    const factoryId = 1; // TODO: replace with selected factory later
+    const factoryId = 1; // TODO: dynamic later
 
     getScanPointsByFactory(factoryId)
       .then((res) => {
-        setScanPoints(res.data);
-        setFilteredScanPoints(res.data);
+        // ✅ FIX: Extract array safely
+        const data = Array.isArray(res.data)
+          ? res.data
+          : res.data?.data ?? [];
+
+        setScanPoints(data);
+        setFilteredScanPoints(data);
       })
       .catch((err) => {
         console.error("Failed to load scan points", err);
+        setScanPoints([]);
+        setFilteredScanPoints([]);
       });
   }, []);
 
   /* =========================
-     FILTER LOGIC (UNCHANGED)
+     FILTER LOGIC
   ========================== */
   useEffect(() => {
     let data = [...scanPoints];
@@ -104,11 +111,16 @@ export default function ScanPointsPage() {
     setFilteredScanPoints(data);
   }, [scanPoints, statusFilter, locationFilter, priorityFilter]);
 
+  /* =========================
+     UNIQUE LOCATIONS (SAFE)
+  ========================== */
   const uniqueLocations = Array.from(
     new Set(
-      scanPoints.map(
-        (sp) => `${sp.location.building} - ${sp.location.area}`
-      )
+      Array.isArray(scanPoints)
+        ? scanPoints.map(
+            (sp) => `${sp.location.building} - ${sp.location.area}`
+          )
+        : []
     )
   );
 
