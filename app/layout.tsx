@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import NavbarClient from "@/app/components/navbar/NavbarClient";
+import NavbarWrapper from "@/app/components/navbar/NavbarWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,6 +20,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Security-Verifier",
   description: "Admin panel for Security-Verifier system",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -33,19 +39,23 @@ export default function RootLayout({
           ${geistSans.variable}
           ${geistMono.variable}
           min-h-screen
-          bg-slate-50
           text-slate-900
           antialiased
         `}
       >
-        {/* Navbar */}
-        <NavbarClient />
+        {/* Navbar (hidden on home page) */}
+        <NavbarWrapper>
+          <NavbarClient />
+        </NavbarWrapper>
 
         {/* Page Content */}
-        <main className="pt-28 min-h-[calc(100vh-7rem)]">
+        <main className="min-h-screen">
           {children}
         </main>
       </body>
     </html>
   );
 }
+
+
+

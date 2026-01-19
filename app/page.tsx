@@ -1,102 +1,189 @@
 'use client';
 
-// app/page.tsx
-import { KpiCards } from './components/home-ui/KpiCards';
-import { ActiveAlerts } from './components/home-ui/ActiveAlerts';
-import { TodaySnapshot } from './components/home-ui/TodaySnapshot';
-import { RecentActivity } from './components/home-ui/RecentActivity';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
-// Mock data (unchanged)
-const kpiData = {
-  guardsOnDuty: 12,
-  activePatrols: 8,
-  missedScans: 3,
-  emergencyAlerts: 1,
-};
+export default function Hero() {
+  const router = useRouter();
 
-const alertsData = [
-  { id: 1, type: 'Emergency', message: 'Unauthorized access detected at North Gate', time: '5 min ago', severity: 'critical' },
-  { id: 2, type: 'Missed Scan', message: 'Guard #102 missed checkpoint B3', time: '15 min ago', severity: 'warning' },
-  { id: 3, type: 'Missed Scan', message: 'Guard #104 missed checkpoint D1', time: '25 min ago', severity: 'warning' },
-  { id: 4, type: 'System', message: 'Camera offline at South Entrance', time: '1 hour ago', severity: 'warning' },
-  { id: 5, type: 'Emergency', message: 'Fire alarm triggered in Building A', time: '2 hours ago', severity: 'critical' },
-];
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [btnPosition, setBtnPosition] = useState({ x: 0, y: 0 });
 
-const todaySnapshotData = {
-  patrolsCompleted: 14,
-  patrolsInProgress: 8,
-  patrolsMissed: 3,
-  avgScanCompliance: 92,
-};
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
-const recentActivityData = [
-  { id: 1, time: '10:45 AM', type: 'Patrol Completed', guard: 'John Smith', description: 'Completed perimeter check with all scans verified' },
-  { id: 2, time: '10:30 AM', type: 'Alert Resolved', guard: 'Admin', description: 'False alarm at Building B resolved' },
-  { id: 3, time: '10:15 AM', type: 'Guard Check-in', guard: 'Mike Wilson', description: 'Started Parking Lot Security patrol' },
-  { id: 4, time: '09:45 AM', type: 'Emergency Alert', guard: 'System', description: 'Unauthorized access attempt at North Gate' },
-  { id: 5, time: '09:30 AM', type: 'Patrol Started', guard: 'Sarah Johnson', description: 'Started Building A Patrol route' },
-];
+  // ================= IMAGES =================
+  const images = [
+    '/guard1.png',
+    '/guard2.png',
+    '/guard3.png',
+    '/guard4.png',
+    '/guard5.png',
+    '/guard6.png',
+    '/guard7.png',
+  ];
 
-export default function Home() {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  // ================= IMAGE TRANSITION =================
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFade(false);
+
+      setTimeout(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+        setFade(true);
+      }, 600);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ================= LOAD ANIMATION =================
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoaded(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ================= TYPING EFFECT =================
+  useEffect(() => {
+    const h1 = document.querySelector('h1');
+    if (!h1) return;
+
+    const lines = ['Welcome to', 'Security Rounds', 'Management'];
+    h1.innerHTML = '';
+
+    let lineIndex = 0;
+    let charIndex = 0;
+
+    const type = () => {
+      if (lineIndex >= lines.length) return;
+
+      if (!h1.children[lineIndex]) {
+        const lineWrapper = document.createElement('div');
+        lineWrapper.style.overflow = 'hidden';
+
+        const lineSpan = document.createElement('span');
+        lineSpan.style.display = 'inline-block';
+        lineSpan.style.transform = 'translateY(120%)';
+        lineSpan.style.animation = `revealText 0.8s ease forwards`;
+        lineSpan.style.animationDelay = `${lineIndex * 0.15}s`;
+
+        lineWrapper.appendChild(lineSpan);
+        h1.appendChild(lineWrapper);
+      }
+
+      const currentSpan = h1.children[lineIndex].firstChild as HTMLElement;
+      currentSpan.textContent += lines[lineIndex][charIndex];
+      charIndex++;
+
+      if (charIndex === lines[lineIndex].length) {
+        lineIndex++;
+        charIndex = 0;
+      }
+
+      setTimeout(type, 60);
+    };
+
+    type();
+  }, []);
+
+  // ================= MAGNETIC BUTTON =================
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    setBtnPosition({ x: x * 0.3, y: y * 0.3 });
+  };
+
+  const handleMouseLeave = () => {
+    setBtnPosition({ x: 0, y: 0 });
+  };
+
+  // ================= PARALLAX =================
+  const handleGlobalMouseMove = (e: React.MouseEvent) => {
+    if (!cardRef.current) return;
+    const x = (e.clientX - window.innerWidth / 2) * 0.02;
+    const y = (e.clientY - window.innerHeight / 2) * 0.02;
+    cardRef.current.style.transform = `translate(${x}px, ${y}px)`;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        
-        {/* Header */}
-        <div className="mb-8 flex flex-col gap-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-800">
-            Security Operations Dashboard
-          </h1>
-          <p className="text-sm text-slate-500">
-            Real-time overview of patrols, alerts, and system activity
-          </p>
+    <>
+      <style jsx global>{`
+        @keyframes float-blob {
+          0% { transform: translate(0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0) scale(1); }
+        }
+
+        @keyframes revealText {
+          to { transform: translateY(0); }
+        }
+
+        .animate-blob {
+          animation: float-blob 10s infinite ease-in-out;
+        }
+
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+      `}</style>
+
+      <section
+        className="min-h-screen bg-[#080883] flex items-center relative overflow-hidden"
+        onMouseMove={handleGlobalMouseMove}
+      >
+        <div className="max-w-7xl mx-auto w-full px-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center relative z-10">
+          <div>
+            <h1 className="text-white text-[64px] font-bold" />
+
+            <p className="text-white/90 text-lg mt-6 max-w-lg">
+              Turning routine security rounds into measurable,
+              reliable, and proactive safety operations.
+            </p>
+
+            <button
+              ref={btnRef}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => router.push('/login')}
+              className="mt-10 bg-white text-[#080883] px-10 py-4 rounded-full font-semibold"
+              style={{ transform: `translate(${btnPosition.x}px, ${btnPosition.y}px)` }}
+            >
+              LOGIN
+            </button>
+          </div>
+
+          <div className="flex justify-center">
+            <div
+              ref={cardRef}
+              className={`relative bg-[#C8FFB8] rounded-3xl w-[420px] h-[347px] flex items-center justify-center overflow-hidden transition-all duration-500
+                ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20'}
+              `}
+            >
+              <div
+                className={`transition-all duration-700 ${
+                  fade ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+                }`}
+              >
+                <Image
+                  key={currentImageIndex}
+                  src={images[currentImageIndex]}
+                  alt="Security Guard"
+                  width={350}
+                  height={580}
+                  className="object-contain mt-[49px]"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* KPI Section */}
-        <section className="mb-8">
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <KpiCards data={kpiData} />
-          </div>
-        </section>
-
-        {/* Active Alerts */}
-        <section className="mb-8">
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">
-                Active Alerts
-              </h2>
-              <span className="text-xs text-slate-500">Last 24h</span>
-            </div>
-            <ActiveAlerts alerts={alertsData} />
-          </div>
-        </section>
-
-        {/* Today's Snapshot */}
-        <section className="mb-8">
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">
-                Today's Snapshot
-              </h2>
-              <span className="text-xs text-slate-500">Daily performance</span>
-            </div>
-            <TodaySnapshot data={todaySnapshotData} />
-          </div>
-        </section>
-
-        {/* Recent Activity */}
-        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">
-              Recent Activity
-            </h2>
-            <span className="text-xs text-slate-500">System log</span>
-          </div>
-          <RecentActivity activities={recentActivityData} />
-        </section>
-
-      </div>
-    </div>
+      </section>
+    </>
   );
 }

@@ -1,16 +1,16 @@
 /* ================= USER TYPES ================= */
 
 export type UserRole = 'Admin' | 'Supervisor' | 'Guard'
-export type UserStatus = 'Active' | 'Inactive'
 
 export interface User {
   id: string
+  securityId: string
+
   fullName: string
   email: string
   phoneNumber: string
 
   role: UserRole
-  status: UserStatus
 
   assignedSite: string
   assignedRoute: string
@@ -36,6 +36,5 @@ export interface User {
 
 export interface UserFiltersState {
   role: UserRole | 'All'
-  status: UserStatus | 'All'
   site: string
 }

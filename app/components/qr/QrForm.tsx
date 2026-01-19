@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { QRCode } from "@/app/dashboard/qr-crud/page";
+import QRCodeLib from "qrcode";
 
 interface QrFormProps {
   qr: QRCode | null;
@@ -20,9 +21,9 @@ export default function QrForm({
   onClose,
   buildings,
   floors,
-  routes,
 }: QrFormProps) {
   const [formData, setFormData] = useState({
+    qrid: "",
     name: "",
     location: {
       building: "",
@@ -40,22 +41,25 @@ export default function QrForm({
       graceTime: 15,
     },
     adminControls: {
-      assignedRoute: "",
+      importance: "Medium" as "Low" | "Medium" | "High" | "Critical",
     },
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [qrImage, setQrImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (qr && isEditMode) {
       setFormData({
+        qrid: qr.qrid,
         name: qr.name,
         location: { ...qr.location },
         status: qr.status,
         required: qr.required,
         sequenceOrder: qr.sequenceOrder,
         scanLogic: { ...qr.scanLogic },
-        adminControls: { ...qr.adminControls },
+        adminControls: {
+          importance: qr.adminControls?.importance ?? "Medium",
+        },
       });
     }
   }, [qr, isEditMode]);
@@ -66,26 +70,27 @@ export default function QrForm({
     >
   ) => {
     const { name, value } = e.target;
-    
+
     if (name.includes(".")) {
-      const [parent, child] = name.split(".");
-      if (child.includes(".")) {
-        const [grandParent, parent, child] = name.split(".");
+      const parts = name.split(".");
+      if (parts.length === 3) {
+        const [grandParent, parent, child] = parts;
         setFormData((prev) => ({
           ...prev,
           [grandParent]: {
-            ...prev[grandParent as keyof typeof prev],
+            ...(prev as any)[grandParent],
             [parent]: {
-              ...(prev[grandParent as keyof typeof prev] as any)[parent],
+              ...(prev as any)[grandParent][parent],
               [child]: value,
             },
           },
         }));
       } else {
+        const [parent, child] = parts;
         setFormData((prev) => ({
           ...prev,
           [parent]: {
-            ...(prev[parent as keyof typeof prev] as any),
+            ...(prev as any)[parent],
             [child]: value,
           },
         }));
@@ -98,298 +103,152 @@ export default function QrForm({
     }
   };
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = "QR Name is required";
-    }
-    
-    if (!formData.location.building) {
-      newErrors["location.building"] = "Building is required";
-    }
-    
-    if (!formData.location.floor) {
-      newErrors["location.floor"] = "Floor is required";
-    }
-    
-    if (!formData.location.area.trim()) {
-      newErrors["location.area"] = "Area is required";
-    }
-    
-    if (!formData.adminControls.assignedRoute) {
-      newErrors["adminControls.assignedRoute"] = "Assigned Route is required";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const generateQr = async () => {
+    const qrPayload = {
+      qrid: formData.qrid,
+      name: formData.name,
+      location: formData.location,
+      importance: formData.adminControls.importance,
+    };
+
+    const url = await QRCodeLib.toDataURL(JSON.stringify(qrPayload), {
+      width: 280,
+      margin: 2,
+    });
+
+    setQrImage(url);
+  };
+
+  const downloadQr = () => {
+    if (!qrImage) return;
+    const link = document.createElement("a");
+    link.href = qrImage;
+    link.download = `${formData.qrid || "qr-code"}.png`;
+    link.click();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (validate()) {
-      onSave(formData);
-    }
+    onSave(formData);
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-        <div className="mt-3">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+      <div className="bg-white w-[95vw] h-[90vh] rounded-lg p-6 flex gap-6">
+
+        {/* LEFT: FORM */}
+        <form
+          onSubmit={handleSubmit}
+          className="w-2/3 grid grid-cols-2 gap-4 content-start"
+        >
+          <h3 className="col-span-2 text-xl font-semibold">
             {isEditMode ? "Edit QR Code" : "Add New QR Code"}
           </h3>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Info Section */}
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Basic Info</h4>
-              <div className="grid grid-cols-1 gap-y-3 gap-x-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    QR Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                      errors.name ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="sequenceOrder" className="block text-sm font-medium text-gray-700">
-                    Sequence Order
-                  </label>
-                  <input
-                    type="number"
-                    id="sequenceOrder"
-                    name="sequenceOrder"
-                    value={formData.sequenceOrder}
-                    onChange={handleChange}
-                    min="1"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-            </div>
 
-            {/* Location Section */}
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Location</h4>
-              <div className="grid grid-cols-1 gap-y-3 gap-x-4 sm:grid-cols-3">
-                <div>
-                  <label htmlFor="location.building" className="block text-sm font-medium text-gray-700">
-                    Building
-                  </label>
-                  <select
-                    id="location.building"
-                    name="location.building"
-                    value={formData.location.building}
-                    onChange={handleChange}
-                    className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                      errors["location.building"] ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Select Building</option>
-                    {buildings.map((building) => (
-                      <option key={building} value={building}>
-                        {building}
-                      </option>
-                    ))}
-                  </select>
-                  {errors["location.building"] && (
-                    <p className="mt-1 text-sm text-red-600">{errors["location.building"]}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="location.floor" className="block text-sm font-medium text-gray-700">
-                    Floor
-                  </label>
-                  <select
-                    id="location.floor"
-                    name="location.floor"
-                    value={formData.location.floor}
-                    onChange={handleChange}
-                    className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                      errors["location.floor"] ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Select Floor</option>
-                    {floors.map((floor) => (
-                      <option key={floor} value={floor}>
-                        {floor}
-                      </option>
-                    ))}
-                  </select>
-                  {errors["location.floor"] && (
-                    <p className="mt-1 text-sm text-red-600">{errors["location.floor"]}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="location.area" className="block text-sm font-medium text-gray-700">
-                    Area
-                  </label>
-                  <input
-                    type="text"
-                    id="location.area"
-                    name="location.area"
-                    value={formData.location.area}
-                    onChange={handleChange}
-                    className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                      errors["location.area"] ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
-                  {errors["location.area"] && (
-                    <p className="mt-1 text-sm text-red-600">{errors["location.area"]}</p>
-                  )}
-                </div>
-              </div>
-            </div>
+          <input
+            name="qrid"
+            placeholder="QR ID"
+            value={formData.qrid}
+            onChange={handleChange}
+            disabled={isEditMode}
+            className="border p-2 rounded"
+          />
 
-            {/* Patrol Rules Section */}
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Patrol Rules</h4>
-              <div className="grid grid-cols-1 gap-y-3 gap-x-4 sm:grid-cols-3">
-                <div>
-                  <label htmlFor="scanLogic.expectedScanTimeWindow.from" className="block text-sm font-medium text-gray-700">
-                    Expected Scan From
-                  </label>
-                  <input
-                    type="time"
-                    id="scanLogic.expectedScanTimeWindow.from"
-                    name="scanLogic.expectedScanTimeWindow.from"
-                    value={formData.scanLogic.expectedScanTimeWindow.from}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="scanLogic.expectedScanTimeWindow.to" className="block text-sm font-medium text-gray-700">
-                    Expected Scan To
-                  </label>
-                  <input
-                    type="time"
-                    id="scanLogic.expectedScanTimeWindow.to"
-                    name="scanLogic.expectedScanTimeWindow.to"
-                    value={formData.scanLogic.expectedScanTimeWindow.to}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="scanLogic.graceTime" className="block text-sm font-medium text-gray-700">
-                    Grace Time (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    id="scanLogic.graceTime"
-                    name="scanLogic.graceTime"
-                    value={formData.scanLogic.graceTime}
-                    onChange={handleChange}
-                    min="0"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-            </div>
+          <input
+            name="name"
+            placeholder="QR Name"
+            value={formData.name}
+            onChange={handleChange}
+            className="border p-2 rounded"
+          />
 
-            {/* Status Section */}
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Status</h4>
-              <div className="grid grid-cols-1 gap-y-3 gap-x-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                    Status
-                  </label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label htmlFor="required" className="block text-sm font-medium text-gray-700">
-                    Required
-                  </label>
-                  <select
-                    id="required"
-                    name="required"
-                    value={formData.required}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+          <select
+            name="location.building"
+            value={formData.location.building}
+            onChange={handleChange}
+            className="border p-2 rounded"
+          >
+            <option value="">Building</option>
+            {buildings.map((b) => (
+              <option key={b}>{b}</option>
+            ))}
+          </select>
 
-            {/* Admin Controls Section */}
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Admin Controls</h4>
-              <div>
-                <label htmlFor="adminControls.assignedRoute" className="block text-sm font-medium text-gray-700">
-                  Assigned Route / Patrol
-                </label>
-                <select
-                  id="adminControls.assignedRoute"
-                  name="adminControls.assignedRoute"
-                  value={formData.adminControls.assignedRoute}
-                  onChange={handleChange}
-                  className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                    errors["adminControls.assignedRoute"] ? "border-red-500" : "border-gray-300"
-                  }`}
-                >
-                  <option value="">Select Route</option>
-                  {routes.map((route) => (
-                    <option key={route} value={route}>
-                      {route}
-                    </option>
-                  ))}
-                </select>
-                {errors["adminControls.assignedRoute"] && (
-                  <p className="mt-1 text-sm text-red-600">{errors["adminControls.assignedRoute"]}</p>
-                )}
-              </div>
-            </div>
+          <select
+            name="location.floor"
+            value={formData.location.floor}
+            onChange={handleChange}
+            className="border p-2 rounded"
+          >
+            <option value="">Floor</option>
+            {floors.map((f) => (
+              <option key={f}>{f}</option>
+            ))}
+          </select>
 
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-4">
+          <input
+            name="location.area"
+            placeholder="Area"
+            value={formData.location.area}
+            onChange={handleChange}
+            className="border p-2 rounded col-span-2"
+          />
+
+          <select
+            name="adminControls.importance"
+            value={formData.adminControls.importance}
+            onChange={handleChange}
+            className="border p-2 rounded col-span-2"
+          >
+            <option value="Low">Low Priority</option>
+            <option value="Medium">Medium Priority</option>
+            <option value="High">High Priority</option>
+            <option value="Critical">Critical Priority</option>
+          </select>
+
+          <div className="col-span-2 flex gap-3 mt-4">
+            <button
+              type="button"
+              onClick={generateQr}
+              className="flex-1 bg-green-600 text-white py-2 rounded"
+            >
+              Generate QR
+            </button>
+
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 text-white py-2 rounded"
+            >
+              {isEditMode ? "Update" : "Save"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border py-2 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+
+        {/* RIGHT: QR PREVIEW */}
+        <div className="w-1/3 border rounded-lg flex flex-col items-center justify-center gap-4">
+          {qrImage ? (
+            <>
+              <img src={qrImage} className="w-64 border p-2" />
               <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                onClick={downloadQr}
+                className="w-2/3 bg-blue-600 text-white py-2 rounded"
               >
-                Cancel
+                Download QR
               </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                {isEditMode ? "Update" : "Save"}
-              </button>
-            </div>
-          </form>
+            </>
+          ) : (
+            <p className="text-gray-500 text-center">
+              Generate QR to preview
+            </p>
+          )}
         </div>
       </div>
     </div>

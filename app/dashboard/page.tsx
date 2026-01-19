@@ -4,20 +4,25 @@ import React, { useState, useEffect } from 'react';
 import DashboardStatCard from './components/DashboardStatCard';
 import RoundsStatusChart from './components/RoundsStatusChart';
 import AverageRoundTimeCard from './components/AverageRoundTimeCard';
-import RecentActivityTable from './components/RecentActivityTable';
-import GuardsIssueTable from './components/GuardsIssueTable';
 import DashboardFilters from './components/DashboardFilters';
 import DashboardSkeleton from './components/DashboardSkeleton';
-import EmptyState from './components/EmptyState';
 import DashboardError from './components/DashboardError';
-import { 
-  mockStats, 
-  mockRoundStatusData, 
-  mockRecentActivity, 
-  mockGuardIssues, 
-  mockSiteOptions 
-} from './constants/mockData';
+import DashboardPerformanceCharts from './components/DashboardPerformanceCharts';
+
+import { mockSiteOptions } from './constants/mockData';
 import { DashboardFilters as DashboardFiltersType } from './types/dashboard';
+
+type DashboardAPIResponse = {
+  totalGuards: number;
+  roundsToday: { completed: number; scheduled: number };
+  missedRounds: number;
+  activeAlerts: number;
+  roundStatusData: any[]; 
+  averageRoundTime: number;
+  targetRoundTime: number;
+  attendanceData: any[];
+  completionData: any[];
+};
 
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -30,15 +35,40 @@ export default function Dashboard() {
     site: 'all'
   });
 
-  useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      // Simulate occasional error for demo purposes
-      // setHasError(Math.random() > 0.9);
-    }, 1500);
+  const [dashboardData, setDashboardData] = useState<DashboardAPIResponse | null>(null);
 
-    return () => clearTimeout(timer);
+  // 🔹 Backend fetch with proper token and env variable
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      setHasError(false);
+
+      const token = localStorage.getItem('access_token'); // match login storage
+      if (!token) throw new Error('No auth token found');
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) throw new Error('API URL not set in .env');
+
+      const res = await fetch(`${apiUrl}/admin/dashboard`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch dashboard');
+
+      const data: DashboardAPIResponse = await res.json();
+      console.log('Dashboard API data:', data);
+
+      setDashboardData(data);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Dashboard fetch error:', error);
+      setHasError(true);
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
   }, []);
 
   const handleDateRangeChange = (start: string, end: string) => {
@@ -56,13 +86,7 @@ export default function Dashboard() {
   };
 
   const handleRetry = () => {
-    setIsLoading(true);
-    setHasError(false);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-
-    return () => clearTimeout(timer);
+    fetchDashboardData();
   };
 
   if (isLoading) {
@@ -73,7 +97,7 @@ export default function Dashboard() {
     );
   }
 
-  if (hasError) {
+  if (hasError || !dashboardData) {
     return (
       <div className="p-6">
         <DashboardError onRetry={handleRetry} />
@@ -81,26 +105,12 @@ export default function Dashboard() {
     );
   }
 
-  // Filter data based on selected site
-  const filteredRecentActivity = filters.site === 'all' 
-    ? mockRecentActivity 
-    : mockRecentActivity.filter(activity => {
-        const siteOption = mockSiteOptions.find(option => option.id === filters.site);
-        return activity.site === siteOption?.name;
-      });
-
-  const filteredGuardIssues = filters.site === 'all' 
-    ? mockGuardIssues 
-    : mockGuardIssues.filter(issue => {
-        // In a real app, we would have site info for each guard
-        // For demo purposes, we'll just return a subset
-        return Math.random() > 0.5;
-      });
-
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Security Rounds Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Security Rounds Dashboard
+        </h1>
       </div>
 
       <DashboardFilters
@@ -114,54 +124,42 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <DashboardStatCard
           title="Total Guards"
-          value={mockStats.totalGuards}
-          trend={{ value: 2, isPositive: true }}
+          value={dashboardData.totalGuards}
+          trend={{ value: 0, isPositive: true }}
         />
         <DashboardStatCard
           title="Rounds Today"
-          value={`${mockStats.roundsToday.completed}/${mockStats.roundsToday.scheduled}`}
-          subtitle={`${Math.round((mockStats.roundsToday.completed / mockStats.roundsToday.scheduled) * 100)}% completed`}
-          trend={{ value: 5, isPositive: true }}
+          value={`${dashboardData.roundsToday.completed}/${dashboardData.roundsToday.scheduled}`}
+          subtitle={`${Math.round(
+            (dashboardData.roundsToday.completed / dashboardData.roundsToday.scheduled) * 100
+          )}% completed`}
+          trend={{ value: 0, isPositive: true }}
         />
         <DashboardStatCard
           title="Missed Rounds"
-          value={mockStats.missedRounds}
-          trend={{ value: 8, isPositive: false }}
+          value={dashboardData.missedRounds}
+          trend={{ value: 0, isPositive: false }}
         />
         <DashboardStatCard
           title="Active Alerts"
-          value={mockStats.activeAlerts}
-          trend={{ value: 3, isPositive: false }}
+          value={dashboardData.activeAlerts}
+          trend={{ value: 0, isPositive: false }}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <RoundsStatusChart data={mockRoundStatusData} />
-        <AverageRoundTimeCard averageTime={42} targetTime={45} />
+        <RoundsStatusChart data={dashboardData.roundStatusData} />
+        <AverageRoundTimeCard
+          averageTime={dashboardData.averageRoundTime}
+          targetTime={dashboardData.targetRoundTime}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredRecentActivity.length > 0 ? (
-          <RecentActivityTable data={filteredRecentActivity} />
-        ) : (
-          <div className="bg-white rounded-lg shadow p-6">
-            <EmptyState
-              title="No recent activity"
-              description="There is no recent activity to display for the selected filters."
-            />
-          </div>
-        )}
-        
-        {filteredGuardIssues.length > 0 ? (
-          <GuardsIssueTable data={filteredGuardIssues} />
-        ) : (
-          <div className="bg-white rounded-lg shadow p-6">
-            <EmptyState
-              title="No issues found"
-              description="All guards are performing well. No attention is required at this time."
-            />
-          </div>
-        )}
+      <div className="mb-6">
+        <DashboardPerformanceCharts
+          attendanceData={dashboardData.attendanceData}
+          completionData={dashboardData.completionData}
+        />
       </div>
     </div>
   );

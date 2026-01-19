@@ -21,20 +21,6 @@ const mockActivities: Activity[] = [
     source: 'Mobile App',
     status: 'Success',
   },
-  {
-    id: 'ACT002',
-    type: 'Issue Reported',
-    timestamp: '2023-11-15T10:30:00Z',
-    guardName: 'Sarah Johnson',
-    guardId: 'G002',
-    routeName: 'Morning Patrol',
-    building: 'Building B',
-    floor: 'Floor 1',
-    area: 'Parking Lot',
-    source: 'Mobile App',
-    status: 'Warning',
-    severity: 'Medium',
-  },
 ]
 
 export default function SecurityActivityPage() {
@@ -60,10 +46,6 @@ export default function SecurityActivityPage() {
       filtered = filtered.filter(a => a.routeName === filters.route)
     }
 
-    if (filters.severity !== 'all') {
-      filtered = filtered.filter(a => a.severity === filters.severity)
-    }
-
     setFilteredActivities(filtered)
   }
 
@@ -77,16 +59,19 @@ export default function SecurityActivityPage() {
 
       <ActivitySummaryCards
         totalActivities={filteredActivities.length}
-        missedScans={filteredActivities.filter(a => a.type === 'Missed Scan').length}
-        issuesReported={filteredActivities.filter(a => a.type === 'Issue Reported').length}
-        emergencyAlerts={filteredActivities.filter(a => a.type === 'Emergency Alert').length}
+        missedScans={
+          filteredActivities.filter(a => a.type === 'Missed Scan').length
+        }
+        emergencyAlerts={
+          filteredActivities.filter(a => a.type === 'Emergency Alert').length
+        }
       />
 
       <div className="bg-white mt-6 rounded">
         <ActivityTable
           activities={filteredActivities}
-          onViewDetails={(a) => {
-            setSelectedActivity(a)
+          onViewDetails={(activity) => {
+            setSelectedActivity(activity)
             setIsDetailsOpen(true)
           }}
         />

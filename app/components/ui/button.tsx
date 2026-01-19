@@ -1,10 +1,12 @@
 import * as React from "react";
+import { Slot } from "@radix-ui/react-slot"; // ✅ added
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "default" | "ghost" | "outline";
   size?: "default" | "icon" | "sm" | "lg";
+  asChild?: boolean; // ✅ added
 }
 
 const buttonVariants = {
@@ -23,9 +25,20 @@ const buttonSizes = {
 };
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", ...props }, ref) => {
+  (
+    {
+      className,
+      variant = "default",
+      size = "default",
+      asChild = false, // ✅ added
+      ...props
+    },
+    ref
+  ) => {
+    const Comp = asChild ? Slot : "button"; // ✅ added
+
     return (
-      <button
+      <Comp
         className={cn(
           "rounded-md font-medium",
           buttonVariants[variant],

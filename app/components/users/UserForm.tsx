@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react'
-import { User, UserRole, UserStatus } from '@/app/types/user'
+import { User, UserRole } from '@/app/types/user'
 import RoleBadge from './RoleBadge'
 
 interface UserFormProps {
@@ -23,8 +23,8 @@ export default function UserForm({
     fullName: '',
     email: '',
     phoneNumber: '',
+    securityId: '', // ✅ ADDED
     role: 'Guard',
-    status: 'Active',
     assignedSite: sites[0] ?? '',
     assignedRoute: '',
     shiftTiming: '',
@@ -46,7 +46,6 @@ export default function UserForm({
     }
   }, [user])
 
-  /* ✅ FIXED: no implicit any */
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -63,12 +62,7 @@ export default function UserForm({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-
-    onSave({
-      ...formData,
-      status:
-        formData.status === 'Inactive' ? 'Inactive' : 'Active',
-    })
+    onSave(formData) // ✅ REMOVED status logic
   }
 
   return (
@@ -87,6 +81,15 @@ export default function UserForm({
             placeholder="Full Name"
           />
 
+          {/* ✅ Security ID */}
+          <input
+            name="securityId"
+            value={formData.securityId ?? ''}
+            onChange={handleChange}
+            className="w-full border p-2 rounded"
+            placeholder="Security ID"
+          />
+
           <select
             name="role"
             value={formData.role}
@@ -100,15 +103,7 @@ export default function UserForm({
 
           <RoleBadge role={formData.role as UserRole} />
 
-          <select
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+          {/* ❌ Status (Active / Inactive) REMOVED */}
 
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose}>

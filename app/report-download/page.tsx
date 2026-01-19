@@ -1,140 +1,165 @@
-// D:\Security_verifier\client-app\security-verifier-client\app\report download\page.tsx
 'use client';
 
 import React, { useState } from 'react';
-import ReportTabs from '@/app/components/reports/ReportTabs';
+import Link from 'next/link';
+import { Button } from '@/app/components/ui/button';
+
 import ReportFilters from '@/app/components/reports/ReportFilters';
 import ReportSummaryCards from '@/app/components/reports/ReportSummaryCards';
 import ReportTable from '@/app/components/reports/ReportTable';
 import ReportExport from '@/app/components/reports/ReportExport';
 
-// Mock data for different report types
-const mockScanComplianceData = [
-  { id: 1, siteName: 'North Campus', routeName: 'Building A Patrol', guardName: 'John Smith', totalScanPoints: 15, completedScans: 14, missedScans: 1, lateScans: 0, compliancePercentage: 93 },
-  { id: 2, siteName: 'South Campus', routeName: 'Parking Lot Check', guardName: 'Sarah Johnson', totalScanPoints: 10, completedScans: 8, missedScans: 2, lateScans: 1, compliancePercentage: 80 },
-  { id: 3, siteName: 'East Campus', routeName: 'Perimeter Check', guardName: 'Michael Brown', totalScanPoints: 20, completedScans: 19, missedScans: 1, lateScans: 2, compliancePercentage: 95 },
-  { id: 4, siteName: 'West Campus', routeName: 'Interior Patrol', guardName: 'Emily Davis', totalScanPoints: 12, completedScans: 12, missedScans: 0, lateScans: 0, compliancePercentage: 100 },
-  { id: 5, siteName: 'North Campus', routeName: 'Building B Patrol', guardName: 'Robert Wilson', totalScanPoints: 18, completedScans: 16, missedScans: 2, lateScans: 1, compliancePercentage: 89 },
+/* ---------------- MOCK DATA ---------------- */
+
+const scanComplianceData = [
+  { id: 1, siteName: 'North Campus', routeName: 'Building A', guardName: 'John', missedScans: 1, compliancePercentage: 93 },
+  { id: 2, siteName: 'South Campus', routeName: 'Parking', guardName: 'Sarah', missedScans: 2, compliancePercentage: 80 },
 ];
 
-const mockGuardPerformanceData = [
-  { id: 1, guardName: 'John Smith', assignedRoutes: 3, totalScans: 45, missedScans: 3, issuesReported: 2, onTimeScanPercentage: 93 },
-  { id: 2, guardName: 'Sarah Johnson', assignedRoutes: 2, totalScans: 30, missedScans: 5, issuesReported: 1, onTimeScanPercentage: 83 },
-  { id: 3, guardName: 'Michael Brown', assignedRoutes: 4, totalScans: 60, missedScans: 2, issuesReported: 3, onTimeScanPercentage: 97 },
-  { id: 4, guardName: 'Emily Davis', assignedRoutes: 2, totalScans: 24, missedScans: 0, issuesReported: 0, onTimeScanPercentage: 100 },
-  { id: 5, guardName: 'Robert Wilson', assignedRoutes: 3, totalScans: 42, missedScans: 4, issuesReported: 2, onTimeScanPercentage: 90 },
+const guardPerformanceData = [
+  { id: 1, guardName: 'John', missedScans: 3, onTimeScanPercentage: 92 },
+  { id: 2, guardName: 'Sarah', missedScans: 5, onTimeScanPercentage: 85 },
 ];
 
-const mockSiteSecurityData = [
-  { id: 1, siteName: 'North Campus', guardsAssigned: 5, patrolsCompleted: 28, issuesReported: 3, emergencyAlerts: 1, missedScans: 7 },
-  { id: 2, siteName: 'South Campus', guardsAssigned: 3, patrolsCompleted: 15, issuesReported: 2, emergencyAlerts: 0, missedScans: 5 },
-  { id: 3, siteName: 'East Campus', guardsAssigned: 4, patrolsCompleted: 22, issuesReported: 4, emergencyAlerts: 2, missedScans: 3 },
-  { id: 4, siteName: 'West Campus', guardsAssigned: 2, patrolsCompleted: 12, issuesReported: 1, emergencyAlerts: 0, missedScans: 2 },
-];
+/* ---------------- PAGE ---------------- */
 
-const mockIssuesIncidentsData = [
-  { id: 1, issueType: 'Unauthorized Access', severity: 'High', site: 'North Campus', location: 'Building A, Floor 3', reportedBy: 'John Smith', status: 'Open' },
-  { id: 2, issueType: 'Equipment Malfunction', severity: 'Medium', site: 'South Campus', location: 'Parking Lot A', reportedBy: 'Sarah Johnson', status: 'Resolved' },
-  { id: 3, issueType: 'Suspicious Activity', severity: 'High', site: 'East Campus', location: 'Perimeter Gate B', reportedBy: 'Michael Brown', status: 'Open' },
-  { id: 4, issueType: 'Fire Alarm', severity: 'Critical', site: 'West Campus', location: 'Building C, Floor 1', reportedBy: 'Emily Davis', status: 'Resolved' },
-  { id: 5, issueType: 'Medical Emergency', severity: 'Critical', site: 'North Campus', location: 'Building B, Cafeteria', reportedBy: 'Robert Wilson', status: 'Resolved' },
-  { id: 6, issueType: 'Theft', severity: 'High', site: 'South Campus', location: 'Storage Room', reportedBy: 'Sarah Johnson', status: 'Open' },
-];
+export default function ReportDownloadPage() {
+  const [activeTab, setActiveTab] = useState<'scanCompliance' | 'guardPerformance'>(
+    'scanCompliance'
+  );
 
-const ReportDownloadPage = () => {
-  const [activeTab, setActiveTab] = useState('scanCompliance');
   const [filters, setFilters] = useState({
     dateRange: { start: '', end: '' },
     site: '',
     route: '',
-    guard: ''
+    guard: '',
   });
 
-  // Get the appropriate data based on the active tab
+  /* 🆕 REPORT PERIOD STATE (DAILY / WEEKLY / MONTHLY / YEARLY) */
+  const [reportPeriod, setReportPeriod] = useState<
+    'daily' | 'weekly' | 'monthly' | 'yearly'
+  >('daily');
+
+  /* ---------- DATA SWITCH ---------- */
   const getReportData = () => {
     switch (activeTab) {
       case 'scanCompliance':
-        return mockScanComplianceData;
+        return scanComplianceData;
       case 'guardPerformance':
-        return mockGuardPerformanceData;
-      case 'siteSecurity':
-        return mockSiteSecurityData;
-      case 'issuesIncidents':
-        return mockIssuesIncidentsData;
+        return guardPerformanceData;
       default:
         return [];
     }
   };
 
-  // Calculate summary data based on the active report
+  /* ---------- SUMMARY ---------- */
   const getSummaryData = () => {
-    const data = getReportData();
-    
-    switch (activeTab) {
-      case 'scanCompliance':
-        return {
-          totalRecords: data.length,
-          compliancePercentage: Math.round(data.reduce((sum, item) => sum + item.compliancePercentage, 0) / data.length),
-          missedScans: data.reduce((sum, item) => sum + item.missedScans, 0),
-          criticalIssues: 0 // Not applicable for this report type
-        };
-      case 'guardPerformance':
-        return {
-          totalRecords: data.length,
-          compliancePercentage: Math.round(data.reduce((sum, item) => sum + item.onTimeScanPercentage, 0) / data.length),
-          missedScans: data.reduce((sum, item) => sum + item.missedScans, 0),
-          criticalIssues: 0 // Not applicable for this report type
-        };
-      case 'siteSecurity':
-        return {
-          totalRecords: data.length,
-          compliancePercentage: Math.round((data.reduce((sum, item) => sum + item.patrolsCompleted, 0) / 
-            (data.reduce((sum, item) => sum + item.patrolsCompleted, 0) + data.reduce((sum, item) => sum + item.missedScans, 0))) * 100),
-          missedScans: data.reduce((sum, item) => sum + item.missedScans, 0),
-          criticalIssues: data.reduce((sum, item) => sum + item.emergencyAlerts, 0)
-        };
-      case 'issuesIncidents':
-        return {
-          totalRecords: data.length,
-          compliancePercentage: Math.round((data.filter(item => item.status === 'Resolved').length / data.length) * 100),
-          missedScans: 0, // Not applicable for this report type
-          criticalIssues: data.filter(item => item.severity === 'Critical').length
-        };
-      default:
-        return {
-          totalRecords: 0,
-          compliancePercentage: 0,
-          missedScans: 0,
-          criticalIssues: 0
-        };
+    const data: any[] = getReportData();
+
+    if (!data.length) {
+      return { totalRecords: 0, compliancePercentage: 0, missedScans: 0, criticalIssues: 0 };
     }
+
+    if (activeTab === 'scanCompliance') {
+      return {
+        totalRecords: data.length,
+        compliancePercentage: Math.round(
+          data.reduce((a, b) => a + b.compliancePercentage, 0) / data.length
+        ),
+        missedScans: data.reduce((a, b) => a + b.missedScans, 0),
+        criticalIssues: 0,
+      };
+    }
+
+    return {
+      totalRecords: data.length,
+      compliancePercentage: Math.round(
+        data.reduce((a, b) => a + b.onTimeScanPercentage, 0) / data.length
+      ),
+      missedScans: data.reduce((a, b) => a + b.missedScans, 0),
+      criticalIssues: 0,
+    };
   };
+
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Reports</h1>
-        
-        <ReportTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-        
-        <div className="mt-6">
-          <ReportFilters filters={filters} setFilters={setFilters} />
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Reports</h1>
+
+        <Button asChild variant="outline" size="sm">
+          <Link href="/">Back to Dashboard</Link>
+        </Button>
       </div>
-      
-      <div className="mb-6">
-        <ReportSummaryCards summaryData={getSummaryData()} reportType={activeTab} />
+
+      {/* 🆕 REPORT PERIOD SELECTOR */}
+      <div className="flex gap-2 mb-6">
+        <Button
+          variant={reportPeriod === 'daily' ? 'default' : 'outline'}
+          onClick={() => setReportPeriod('daily')}
+        >
+          Daily
+        </Button>
+
+        <Button
+          variant={reportPeriod === 'weekly' ? 'default' : 'outline'}
+          onClick={() => setReportPeriod('weekly')}
+        >
+          Weekly
+        </Button>
+
+        <Button
+          variant={reportPeriod === 'monthly' ? 'default' : 'outline'}
+          onClick={() => setReportPeriod('monthly')}
+        >
+          Monthly
+        </Button>
+
+        <Button
+          variant={reportPeriod === 'yearly' ? 'default' : 'outline'}
+          onClick={() => setReportPeriod('yearly')}
+        >
+          Yearly
+        </Button>
       </div>
-      
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <ReportTable data={getReportData()} reportType={activeTab} />
+
+      {/* ✅ ONLY 2 TABS – HARD LIMITED */}
+      <div className="flex gap-2 border-b pb-2 mb-6">
+        <Button
+          variant={activeTab === 'scanCompliance' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('scanCompliance')}
+        >
+          Scan Compliance Report
+        </Button>
+
+        <Button
+          variant={activeTab === 'guardPerformance' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('guardPerformance')}
+        >
+          Guard Performance Report
+        </Button>
       </div>
-      
-      <div className="flex justify-end">
+
+      <ReportFilters filters={filters} setFilters={setFilters} />
+
+      <div className="my-6">
+        <ReportSummaryCards
+          summaryData={getSummaryData()}
+          reportType={activeTab}
+        />
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-4">
+        <ReportTable
+          data={getReportData()}
+          reportType={activeTab}
+        />
+      </div>
+
+      <div className="flex justify-end mt-4">
         <ReportExport reportType={activeTab} />
       </div>
     </div>
   );
-};
-
-export default ReportDownloadPage;
+}
