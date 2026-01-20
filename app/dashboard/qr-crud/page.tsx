@@ -10,79 +10,66 @@ import {
   createQR,
   updateQR,
   deleteQR,
-  fetchFactories, // ✅ new API function
+  fetchFactories,
   QRData,
 } from "@/app/api/qr.api";
 
-// ----------------- Frontend QR type aligned with DB -----------------
-export interface QRCode {
-  qr_id: number;
-  qr_name: string;
-  lat?: number;
-  lon?: number;
-  status?: "active" | "inactive";
-  created_at?: string;
-  factory_code?: string;
-}
+// ----------------- TYPES -----------------
 
-// ----------------- Factory type -----------------
+// We use QRData from the API to ensure 100% compatibility.
+export type QRCode = QRData;
+
 export interface Factory {
   factory_code: string;
   factory_name: string;
 }
 
-// ----------------- Constants -----------------
-const token = "<PASTE_YOUR_ADMIN_JWT_HERE>"; // admin token
-
-// ----------------- Main Component -----------------
+// ----------------- MAIN COMPONENT -----------------
 export default function QrCrudPage() {
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
   const [filteredQrCodes, setFilteredQrCodes] = useState<QRCode[]>([]);
+  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [currentQr, setCurrentQr] = useState<QRCode | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [filters, setFilters] = useState({ status: "All", search: "" });
+  
   const [factories, setFactories] = useState<Factory[]>([]);
+  const [selectedFactory, setSelectedFactory] = useState<string>("");
 
-  // ----------------- Mapping -----------------
-  const mapQRDataToQRCode = (data: QRData): QRCode => ({
+  // ----------------- DATA MAPPING -----------------
+  const normalizeQR = (data: any): QRCode => ({
     qr_id: Number(data.qr_id),
-    qr_name: data.qr_name,
-    lat: data.lat ?? 0,
-    lon: data.lon ?? 0,
-    status: (data.status as "active" | "inactive") || "inactive",
+    qr_name: data.qr_name || "Unnamed QR",
+    lat: typeof data.lat === 'number' ? data.lat : 0,
+    lon: typeof data.lon === 'number' ? data.lon : 0,
+    status: data.status || "inactive", 
     created_at: data.created_at,
-    factory_code: data.factory_code,
+    factory_code: data.factory_code || "",
   });
 
-  const mapQRCodeToQRData = (qr: Partial<QRCode>): QRData => ({
-    qr_id: qr.qr_id!,
-    qr_name: qr.qr_name!,
-    lat: qr.lat ?? 0,
-    lon: qr.lon ?? 0,
-    status: qr.status ?? "active",
-    factory_code: qr.factory_code ?? factories[0]?.factory_code ?? "",
-  });
-
-  // ----------------- Load QR Codes -----------------
+  // ----------------- LOAD DATA -----------------
   const loadQRCodes = async (factoryCode: string) => {
     try {
-      const data: QRData[] = await fetchQRByFactory(factoryCode, token);
-      setQrCodes(data.map(mapQRDataToQRCode));
+      const rawData: any[] = await fetchQRByFactory(factoryCode);
+      const mappedData = rawData.map(normalizeQR);
+      setQrCodes(mappedData); 
     } catch (err) {
       console.error("Failed to load QR codes:", err);
+      setQrCodes([]);
     }
   };
 
-  // ----------------- Load Factories -----------------
   const loadFactories = async () => {
     try {
-      const data: Factory[] = await fetchFactories(token);
+      const data: Factory[] = await fetchFactories();
       setFactories(data);
 
-      // Load QR codes for the first factory by default
-      if (data.length > 0) loadQRCodes(data[0].factory_code);
+      if (data.length > 0) {
+        const firstFactory = data[0].factory_code;
+        setSelectedFactory(firstFactory);
+        loadQRCodes(firstFactory);
+      }
     } catch (err) {
       console.error("Failed to load factories:", err);
     }
@@ -92,24 +79,12 @@ export default function QrCrudPage() {
     loadFactories();
   }, []);
 
-  // ----------------- Filters -----------------
+  // ----------------- FILTERING -----------------
   useEffect(() => {
-    let filtered = [...qrCodes];
+    setFilteredQrCodes(qrCodes);
+  }, [qrCodes]);
 
-    if (filters.status !== "All") filtered = filtered.filter((qr) => qr.status === filters.status);
-    if (filters.search) {
-      const term = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (qr) =>
-          qr.qr_name.toLowerCase().includes(term) ||
-          qr.qr_id.toString().includes(term)
-      );
-    }
-
-    setFilteredQrCodes(filtered);
-  }, [qrCodes, filters]);
-
-  // ----------------- Handlers -----------------
+  // ----------------- HANDLERS -----------------
   const handleAddQr = () => {
     setCurrentQr(null);
     setIsEditMode(false);
@@ -127,14 +102,34 @@ export default function QrCrudPage() {
     setIsPreviewOpen(true);
   };
 
-  const handleSaveQr = async (qrData: Partial<QRCode>) => {
+  const handleSaveQr = async (qrData: QRCode) => {
     try {
+      // Prepare API payload
+      const apiData: any = {
+        qr_name: qrData.qr_name,
+        lat: Number(qrData.lat),
+        lon: Number(qrData.lon),
+        factory_code: qrData.factory_code,
+        status: qrData.status || "inactive",
+      };
+
+      // ----------------------------------------------------
+      // CRITICAL FIX: Remove qr_id if creating NEW record
+      // This prevents "duplicate key value violates unique constraint" error
+      // ----------------------------------------------------
+      if (!isEditMode) {
+        delete apiData.qr_id; 
+      }
+
       if (isEditMode && currentQr) {
-        const updated = await updateQR(currentQr.qr_id, mapQRCodeToQRData(qrData), token);
-        setQrCodes(qrCodes.map((qr) => (qr.qr_id === currentQr.qr_id ? mapQRDataToQRCode(updated) : qr)));
+        await updateQR(currentQr.qr_id, apiData);
+        const updatedList = qrCodes.map((qr) => 
+          qr.qr_id === currentQr.qr_id ? qrData : qr
+        );
+        setQrCodes(updatedList);
       } else {
-        const created = await createQR(mapQRCodeToQRData(qrData), token);
-        setQrCodes([...qrCodes, mapQRDataToQRCode(created)]);
+        await createQR(apiData);
+        if(selectedFactory) loadQRCodes(selectedFactory);
       }
       setIsFormOpen(false);
     } catch (err: any) {
@@ -146,20 +141,28 @@ export default function QrCrudPage() {
   const handleToggleStatus = (id: number) => {
     const qr = qrCodes.find((q) => q.qr_id === id);
     if (!qr) return;
-    handleSaveQr({ qr_id: id, status: qr.status === "active" ? "inactive" : "active" });
+    
+    const newStatus = qr.status === "active" ? "inactive" : "active";
+    
+    handleSaveQr({ 
+      ...qr, 
+      status: newStatus
+    });
   };
 
   const handleDeleteQr = (id: number) => {
     if (!confirm("Are you sure you want to delete this QR?")) return;
-    deleteQR(id, token)
-      .then(() => setQrCodes(qrCodes.filter((q) => q.qr_id !== id)))
+    deleteQR(id)
+      .then(() => {
+        setQrCodes(qrCodes.filter((q) => q.qr_id !== id));
+      })
       .catch((err) => {
         console.error("Delete QR failed:", err);
         alert("Failed to delete QR");
       });
   };
 
-  // ----------------- Render -----------------
+  // ----------------- RENDER -----------------
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -175,7 +178,16 @@ export default function QrCrudPage() {
         </div>
 
         {/* Filters */}
-        <QrFilters filters={filters} setFilters={setFilters} />
+        <div className="mb-4">
+           <QrFilters 
+              value={selectedFactory} 
+              onChange={(code) => {
+                  setSelectedFactory(code);
+                  loadQRCodes(code);
+              }} 
+              factories={factories} 
+           />
+        </div>
 
         {/* Table */}
         <QrTable
@@ -190,7 +202,7 @@ export default function QrCrudPage() {
         {isFormOpen && (
           <QrForm
             qr={currentQr}
-            factories={factories} // ✅ pass factories
+            factories={factories}
             isEditMode={isEditMode}
             onSave={handleSaveQr}
             onClose={() => setIsFormOpen(false)}

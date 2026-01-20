@@ -34,14 +34,29 @@ export default function ScanPointsPage() {
   /* ================= LOAD FACTORIES ================= */
   useEffect(() => {
     fetch('http://127.0.0.1:8000/factories/minimal')
-      .then(res => res.json())
-      .then((data: Factory[]) => {
-        setFactories(data)
-        if (data.length > 0) setSelectedFactory(data[0].id)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+        return res.json()
       })
-      .catch((err: unknown) =>
+      .then((data) => {
+        // SAFETY CHECK: Ensure data is an array before setting state
+        const factoryArray = Array.isArray(data) ? data : []
+        console.log('Loaded factories:', factoryArray)
+        
+        setFactories(factoryArray)
+        
+        // Only auto-select if we have factories
+        if (factoryArray.length > 0) {
+          setSelectedFactory(factoryArray[0].id)
+        } else {
+          setSelectedFactory('')
+        }
+      })
+      .catch((err: unknown) => {
         console.error('Failed to load factories:', err)
-      )
+        // Ensure factories is always an empty array on error to prevent .map crash
+        setFactories([]) 
+      })
   }, [])
 
   /* ================= LOAD SCAN POINTS ================= */
@@ -50,7 +65,7 @@ export default function ScanPointsPage() {
 
     getScanPointsByFactory(selectedFactory)
       .then((data: ScanPoint[]) => {
-        setScanPoints(data || [])
+        setScanPoints(Array.isArray(data) ? data : [])
       })
       .catch((err: unknown) => {
         console.error('Failed to load scan points:', err)
@@ -77,48 +92,62 @@ export default function ScanPointsPage() {
             setEditingScanPoint(null)
             setIsFormOpen(true)
           }}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
         >
           Add Scan Point
         </button>
       </div>
 
       {/* FILTERS */}
-      <div className="flex gap-4 mb-6">
-        <select
-          value={selectedFactory}
-          onChange={e => setSelectedFactory(e.target.value)}
-          className="border p-2 rounded"
-        >
-          {factories.map(f => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-wrap gap-4 mb-6 items-center">
+        <div className="flex items-center gap-2">
+          <label className="font-medium text-gray-700">Factory:</label>
+          <select
+            value={selectedFactory}
+            onChange={e => setSelectedFactory(e.target.value)}
+            className="border p-2 rounded bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            disabled={factories.length === 0}
+          >
+            {/* SAFETY FIX: Use (factories || []) to prevent crash if state isn't an array */}
+            {(factories || []).map(f => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+            {factories.length === 0 && (
+              <option value="" disabled>No factories available</option>
+            )}
+          </select>
+        </div>
 
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-          className="border p-2 rounded"
-        >
-          <option value="All">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <label className="font-medium text-gray-700">Status:</label>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as StatusFilter)}
+            className="border p-2 rounded bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="All">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
 
-        <select
-          value={priorityFilter}
-          onChange={e =>
-            setPriorityFilter(e.target.value as PriorityFilter)
-          }
-          className="border p-2 rounded"
-        >
-          <option value="All">All Risk Levels</option>
-          <option value="Low">Low</option>
-          <option value="Medium">Medium</option>
-          <option value="High">High</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <label className="font-medium text-gray-700">Risk Level:</label>
+          <select
+            value={priorityFilter}
+            onChange={e =>
+              setPriorityFilter(e.target.value as PriorityFilter)
+            }
+            className="border p-2 rounded bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="All">All Risk Levels</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
       </div>
 
       {/* TABLE */}

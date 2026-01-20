@@ -3,7 +3,8 @@ import axios from "axios";
 // ---------------------------
 // Base URL
 // ---------------------------
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+// Explicitly pointing to your backend to avoid "Network Error"
+const BASE_URL = "http://127.0.0.1:8000"; 
 
 // ---------------------------
 // Create Axios Instance
@@ -21,16 +22,11 @@ const axiosClient = axios.create({
 // ---------------------------
 axiosClient.interceptors.request.use(
   (config) => {
-    // Auto-inject token if available in localStorage or env
-    const token = localStorage.getItem("adminToken") || process.env.NEXT_PUBLIC_ADMIN_JWT;
-
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
-
+    // -------------------------------------------------------
+    // FIX: Removed Token logic completely
+    // We don't use JWT anymore, so no Authorization header.
+    // -------------------------------------------------------
+    
     console.log(
       "Axios Request →",
       config.method?.toUpperCase(),
@@ -60,11 +56,12 @@ axiosClient.interceptors.response.use(
   },
   (error) => {
     if (!error.response) {
-      // Network Error or CORS issue
-      console.error("Axios Network Error ← No Response from server", error.message);
+      // Network Error (Server down, wrong URL, or CORS)
+      console.error("Axios Network Error:", error.message);
     } else {
+      // Server returned an error (400, 500, etc)
       console.error(
-        "Axios Response Error ←",
+        "Axios Response Error:",
         error.response.status,
         error.response.data || error.message
       );

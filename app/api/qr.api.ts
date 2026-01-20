@@ -18,41 +18,36 @@ export interface Factory {
 }
 
 // ----------------- CREATE QR -----------------
-export const createQR = async (data: QRData, token: string): Promise<QRData> => {
-  const res = await axiosClient.post("/qr/", data, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const createQR = async (data: QRData): Promise<QRData> => {
+  // Removed token parameter and headers
+  const res = await axiosClient.post("/qr/", data);
   return res.data;
 };
 
 // ----------------- GET QR BY FACTORY -----------------
-export const fetchQRByFactory = async (factoryCode: string, token: string): Promise<QRData[]> => {
-  const res = await axiosClient.get(`/qr/factory/${factoryCode}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const fetchQRByFactory = async (factoryCode: string): Promise<QRData[]> => {
+  // Removed token parameter and headers
+  const res = await axiosClient.get(`/qr/factory/${factoryCode}`);
   return res.data;
 };
 
 // ----------------- UPDATE QR -----------------
-export const updateQR = async (qrId: number, data: Partial<QRData>, token: string): Promise<QRData> => {
-  const res = await axiosClient.put(`/qr/${qrId}`, data, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const updateQR = async (qrId: number, data: Partial<QRData>): Promise<QRData> => {
+  // Removed token parameter and headers
+  const res = await axiosClient.put(`/qr/${qrId}`, data);
   // Supabase returns an array of updated rows
   return res.data[0];
 };
 
 // ----------------- DELETE QR -----------------
-export const deleteQR = async (qrId: number, token: string): Promise<void> => {
-  await axiosClient.delete(`/qr/${qrId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const deleteQR = async (qrId: number): Promise<void> => {
+  // Removed token parameter and headers
+  await axiosClient.delete(`/qr/${qrId}`);
 };
 
 // ----------------- FETCH FACTORIES -----------------
-export const fetchFactories = async (token: string): Promise<Factory[]> => {
-  const res = await axiosClient.get("/factories", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const fetchFactories = async (): Promise<Factory[]> => {
+  // Removed token parameter and headers
+  const res = await axiosClient.get("/factories");
   return res.data;
 };

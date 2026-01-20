@@ -1,52 +1,38 @@
 "use client";
 
+import { Factory } from "@/app/dashboard/qr-crud/page"; // Import shared types
+
+// Simplified Interface: Only Factory is needed now
 interface QrFiltersProps {
-  filters: {
-    factory: string;
-    search: string;
-  };
-  setFilters: React.Dispatch<React.SetStateAction<{ factory: string; search: string }>>;
-  factories?: string[]; // list of factories from backend
+  value: string; // This is the selected factory_code
+  onChange: (factoryCode: string) => void;
+  factories: Factory[];
 }
 
-export default function QrFilters({ filters, setFilters, factories = [] }: QrFiltersProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
+export default function QrFilters({ value, onChange, factories }: QrFiltersProps) {
   return (
-    <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:gap-4">
-      {/* Factory Filter */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Factory</label>
+    <div className="bg-white p-4 rounded shadow-sm flex items-center gap-4">
+      
+      {/* Factory Select Label */}
+      <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+        Select Factory:
+      </label>
+
+      {/* Factory Dropdown */}
+      <div className="flex-1">
         <select
-          name="factory"
-          value={filters.factory}
-          onChange={handleChange}
-          className="border p-2 rounded w-full sm:w-48"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
         >
-          <option value="All">All</option>
-          {factories.map((factory) => (
-            <option key={factory} value={factory}>
-              {factory}
+          {factories.map((f) => (
+            <option key={f.factory_code} value={f.factory_code}>
+              {f.factory_name}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Search Filter */}
-      <div className="flex-1">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-        <input
-          type="text"
-          name="search"
-          value={filters.search}
-          onChange={handleChange}
-          placeholder="Search by QR name or ID"
-          className="border p-2 rounded w-full"
-        />
-      </div>
     </div>
   );
 }

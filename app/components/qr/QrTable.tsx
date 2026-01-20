@@ -1,36 +1,27 @@
 "use client";
 
 import { QRData } from "@/app/api/qr.api";
-import QrActions from "./QrActions";
 
-// Frontend DB-only QR type
-export interface QRCode {
-  qr_id: number;
-  qr_name: string;
-  lat?: number;
-  lon?: number;
-  status: "active" | "inactive";
-  created_at?: string;
-  factory_code?: string;
-}
+// Use type from API to ensure consistency
+export type QRCode = QRData;
 
 interface QrTableProps {
-  qrCodes: QRData[]; // raw backend type
+  qrCodes: QRCode[]; 
   onEdit: (qr: QRCode) => void;
   onView: (qr: QRCode) => void;
   onToggleStatus: (id: number) => void;
   onDelete: (id: number) => void;
 }
 
-// Map backend QRData → frontend QRCode
-const mapQRDataToQRCode = (data: QRData): QRCode => ({
+// Helper to safely normalize data
+const normalizeQR = (data: QRData): QRCode => ({
   qr_id: Number(data.qr_id),
-  qr_name: data.qr_name,
-  lat: data.lat ?? 0,
-  lon: data.lon ?? 0,
-  status: data.status === "active" ? "active" : "inactive", // force correct type
+  qr_name: data.qr_name || "Unnamed QR",
+  lat: typeof data.lat === 'number' ? data.lat : 0,
+  lon: typeof data.lon === 'number' ? data.lon : 0,
+  status: (data.status === "active" || data.status === "inactive") ? data.status : "inactive",
   created_at: data.created_at,
-  factory_code: data.factory_code,
+  factory_code: data.factory_code || "",
 });
 
 export default function QrTable({
@@ -47,22 +38,19 @@ export default function QrTable({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                QR Name
+                Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                QR ID
+                ID
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Latitude
+                Factory
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Longitude
+                Lat / Lon
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Created At
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -72,7 +60,8 @@ export default function QrTable({
 
           <tbody className="bg-white divide-y divide-gray-200">
             {qrCodes.map((qrData) => {
-              const qr = mapQRDataToQRCode(qrData); // map each row
+              const qr = normalizeQR(qrData);
+              
               return (
                 <tr key={qr.qr_id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -84,11 +73,11 @@ export default function QrTable({
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {qr.lat ?? "-"}
+                    {qr.factory_code}
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {qr.lon ?? "-"}
+                    {qr.lat}, {qr.lon}
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -103,18 +92,44 @@ export default function QrTable({
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {qr.created_at ? new Date(qr.created_at).toLocaleString() : "-"}
-                  </td>
-
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <QrActions
-                      qr={qr}
-                      onEdit={() => onEdit(qr)}
-                      onView={() => onView(qr)}
-                      onToggleStatus={() => onToggleStatus(qr.qr_id)}
-                      onDelete={() => onDelete(qr.qr_id)}
-                    />
+                    {/* 
+                       INTEGRATED ACTIONS:
+                       We put the buttons here directly to avoid 'QrActions' prop errors.
+                    */}
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => onView(qr)}
+                        className="text-blue-600 hover:text-blue-900 text-xs font-medium px-2 py-1 border border-blue-200 rounded hover:bg-blue-50 transition"
+                      >
+                        View
+                      </button>
+                      
+                      <button
+                        onClick={() => onEdit(qr)}
+                        className="text-indigo-600 hover:text-indigo-900 text-xs font-medium px-2 py-1 border border-indigo-200 rounded hover:bg-indigo-50 transition"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        onClick={() => onToggleStatus(qr.qr_id)}
+                        className={`text-xs font-medium px-2 py-1 border rounded transition ${
+                          qr.status === 'active' 
+                            ? 'text-yellow-600 border-yellow-200 hover:bg-yellow-50' 
+                            : 'text-green-600 border-green-200 hover:bg-green-50'
+                        }`}
+                      >
+                        {qr.status === 'active' ? 'Disable' : 'Enable'}
+                      </button>
+
+                      <button
+                        onClick={() => onDelete(qr.qr_id)}
+                        className="text-red-600 hover:text-red-900 text-xs font-medium px-2 py-1 border border-red-200 rounded hover:bg-red-50 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
