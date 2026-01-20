@@ -1,121 +1,63 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { QRCode } from "@/app/dashboard/qr-crud/page";
 import QRCodeLib from "qrcode";
+import { QRData } from "@/app/api/qr.api";
 
-interface QrFormProps {
-  qr: QRCode | null;
-  isEditMode: boolean;
-  onSave: (qrData: Partial<QRCode>) => void;
-  onClose: () => void;
-  buildings: string[];
-  floors: string[];
-  routes: string[];
+interface Factory {
+  factory_code: string;
+  factory_name: string;
 }
 
-export default function QrForm({
-  qr,
-  isEditMode,
-  onSave,
-  onClose,
-  buildings,
-  floors,
-}: QrFormProps) {
-  const [formData, setFormData] = useState({
-    qrid: "",
-    name: "",
-    location: {
-      building: "",
-      floor: "",
-      area: "",
-    },
-    status: "Active" as "Active" | "Inactive",
-    required: "Yes" as "Yes" | "No",
-    sequenceOrder: 1,
-    scanLogic: {
-      expectedScanTimeWindow: {
-        from: "09:00",
-        to: "17:00",
-      },
-      graceTime: 15,
-    },
-    adminControls: {
-      importance: "Medium" as "Low" | "Medium" | "High" | "Critical",
-    },
+interface QrFormProps {
+  qr: QRData | null;
+  isEditMode: boolean;
+  factories: Factory[]; // ✅ added factories prop
+  onSave: (qrData: QRData) => void;
+  onClose: () => void;
+}
+
+export default function QrForm({ qr, isEditMode, factories, onSave, onClose }: QrFormProps) {
+  const [formData, setFormData] = useState<QRData>({
+    qr_id: 0,
+    qr_name: "",
+    lat: 0,
+    lon: 0,
+    status: "active",
+    created_at: "",
+    factory_code: "",
   });
 
   const [qrImage, setQrImage] = useState<string | null>(null);
 
+  // Load QR data if editing
   useEffect(() => {
     if (qr && isEditMode) {
       setFormData({
-        qrid: qr.qrid,
-        name: qr.name,
-        location: { ...qr.location },
-        status: qr.status,
-        required: qr.required,
-        sequenceOrder: qr.sequenceOrder,
-        scanLogic: { ...qr.scanLogic },
-        adminControls: {
-          importance: qr.adminControls?.importance ?? "Medium",
-        },
+        qr_id: qr.qr_id,
+        qr_name: qr.qr_name,
+        lat: qr.lat ?? 0,
+        lon: qr.lon ?? 0,
+        status: qr.status || "active",
+        created_at: qr.created_at || "",
+        factory_code: qr.factory_code || "",
       });
     }
   }, [qr, isEditMode]);
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-
-    if (name.includes(".")) {
-      const parts = name.split(".");
-      if (parts.length === 3) {
-        const [grandParent, parent, child] = parts;
-        setFormData((prev) => ({
-          ...prev,
-          [grandParent]: {
-            ...(prev as any)[grandParent],
-            [parent]: {
-              ...(prev as any)[grandParent][parent],
-              [child]: value,
-            },
-          },
-        }));
-      } else {
-        const [parent, child] = parts;
-        setFormData((prev) => ({
-          ...prev,
-          [parent]: {
-            ...(prev as any)[parent],
-            [child]: value,
-          },
-        }));
-      }
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "lat" || name === "lon" || name === "qr_id" ? Number(value) : value,
+    }));
   };
 
   const generateQr = async () => {
-    const qrPayload = {
-      qrid: formData.qrid,
-      name: formData.name,
-      location: formData.location,
-      importance: formData.adminControls.importance,
-    };
-
-    const url = await QRCodeLib.toDataURL(JSON.stringify(qrPayload), {
+    const url = await QRCodeLib.toDataURL(JSON.stringify(formData), {
       width: 280,
       margin: 2,
     });
-
     setQrImage(url);
   };
 
@@ -123,7 +65,7 @@ export default function QrForm({
     if (!qrImage) return;
     const link = document.createElement("a");
     link.href = qrImage;
-    link.download = `${formData.qrid || "qr-code"}.png`;
+    link.download = `${formData.qr_id || "qr-code"}.png`;
     link.click();
   };
 
@@ -137,87 +79,113 @@ export default function QrForm({
       <div className="bg-white w-[95vw] h-[90vh] rounded-lg p-6 flex gap-6">
 
         {/* LEFT: FORM */}
-        <form
-          onSubmit={handleSubmit}
-          className="w-2/3 grid grid-cols-2 gap-4 content-start"
-        >
+        <form onSubmit={handleSubmit} className="w-2/3 grid grid-cols-2 gap-4 content-start">
           <h3 className="col-span-2 text-xl font-semibold">
             {isEditMode ? "Edit QR Code" : "Add New QR Code"}
           </h3>
 
-          <input
-            name="qrid"
-            placeholder="QR ID"
-            value={formData.qrid}
-            onChange={handleChange}
-            disabled={isEditMode}
-            className="border p-2 rounded"
-          />
+          {/* QR ID */}
+          <div className="col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">QR ID</label>
+            <input
+              type="number"
+              name="qr_id"
+              placeholder="Auto-generated"
+              value={formData.qr_id}
+              onChange={handleChange}
+              disabled={isEditMode}
+              className="border p-2 rounded w-full"
+            />
+          </div>
 
-          <input
-            name="name"
-            placeholder="QR Name"
-            value={formData.name}
-            onChange={handleChange}
-            className="border p-2 rounded"
-          />
+          {/* QR Name */}
+          <div className="col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">QR Name</label>
+            <input
+              type="text"
+              name="qr_name"
+              placeholder="Enter QR name"
+              value={formData.qr_name}
+              onChange={handleChange}
+              className="border p-2 rounded w-full"
+              required
+            />
+          </div>
 
-          <select
-            name="location.building"
-            value={formData.location.building}
-            onChange={handleChange}
-            className="border p-2 rounded"
-          >
-            <option value="">Building</option>
-            {buildings.map((b) => (
-              <option key={b}>{b}</option>
-            ))}
-          </select>
+          {/* Latitude */}
+          <div className="col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+            <input
+              type="number"
+              name="lat"
+              step="any"
+              placeholder="Enter latitude"
+              value={formData.lat}
+              onChange={handleChange}
+              className="border p-2 rounded w-full"
+            />
+          </div>
 
-          <select
-            name="location.floor"
-            value={formData.location.floor}
-            onChange={handleChange}
-            className="border p-2 rounded"
-          >
-            <option value="">Floor</option>
-            {floors.map((f) => (
-              <option key={f}>{f}</option>
-            ))}
-          </select>
+          {/* Longitude */}
+          <div className="col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+            <input
+              type="number"
+              name="lon"
+              step="any"
+              placeholder="Enter longitude"
+              value={formData.lon}
+              onChange={handleChange}
+              className="border p-2 rounded w-full"
+            />
+          </div>
 
-          <input
-            name="location.area"
-            placeholder="Area"
-            value={formData.location.area}
-            onChange={handleChange}
-            className="border p-2 rounded col-span-2"
-          />
+          {/* Status */}
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="border p-2 rounded w-full"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
 
-          <select
-            name="adminControls.importance"
-            value={formData.adminControls.importance}
-            onChange={handleChange}
-            className="border p-2 rounded col-span-2"
-          >
-            <option value="Low">Low Priority</option>
-            <option value="Medium">Medium Priority</option>
-            <option value="High">High Priority</option>
-            <option value="Critical">Critical Priority</option>
-          </select>
+          {/* Factory Dropdown */}
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Factory</label>
+            <select
+              name="factory_code"
+              value={formData.factory_code}
+              onChange={handleChange}
+              className="border p-2 rounded w-full"
+              required
+            >
+              <option value="">Select Factory</option>
+              {factories.map((f) => (
+                <option key={f.factory_code} value={f.factory_code}>
+                  {f.factory_name} ({f.factory_code})
+                </option>
+              ))}
+            </select>
+          </div>
 
+          {/* Buttons */}
           <div className="col-span-2 flex gap-3 mt-4">
             <button
               type="button"
               onClick={generateQr}
-              className="flex-1 bg-green-600 text-white py-2 rounded"
+              className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700"
             >
               Generate QR
             </button>
 
             <button
               type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 rounded"
+              className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
             >
               {isEditMode ? "Update" : "Save"}
             </button>
@@ -225,7 +193,7 @@ export default function QrForm({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border py-2 rounded"
+              className="flex-1 border py-2 rounded hover:bg-gray-100"
             >
               Cancel
             </button>
@@ -233,23 +201,22 @@ export default function QrForm({
         </form>
 
         {/* RIGHT: QR PREVIEW */}
-        <div className="w-1/3 border rounded-lg flex flex-col items-center justify-center gap-4">
+        <div className="w-1/3 border rounded-lg flex flex-col items-center justify-center gap-4 p-4">
           {qrImage ? (
             <>
               <img src={qrImage} className="w-64 border p-2" />
               <button
                 onClick={downloadQr}
-                className="w-2/3 bg-blue-600 text-white py-2 rounded"
+                className="w-full bg-blue-600 text-white py-2 rounded mt-2 hover:bg-blue-700"
               >
                 Download QR
               </button>
             </>
           ) : (
-            <p className="text-gray-500 text-center">
-              Generate QR to preview
-            </p>
+            <p className="text-gray-500 text-center">Generate QR to preview</p>
           )}
         </div>
+
       </div>
     </div>
   );

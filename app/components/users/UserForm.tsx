@@ -1,115 +1,142 @@
 'use client'
 
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react'
-import { User, UserRole } from '@/app/types/user'
-import RoleBadge from './RoleBadge'
+import { createSecurityUser, updateSecurityUser } from '../../api/securityUsers'
+import { SecurityUser } from '@/app/types/securityUser'
 
 interface UserFormProps {
-  user: User | null
+  user: SecurityUser | null
   onClose: () => void
-  onSave: (data: Partial<User>) => void
-  sites: string[]
-  supervisors: User[]
+  onSave: () => void
+  factories: string[]
 }
 
 export default function UserForm({
   user,
   onClose,
   onSave,
-  sites,
-  supervisors,
+  factories,
 }: UserFormProps) {
-  const [formData, setFormData] = useState<Partial<User>>({
-    fullName: '',
-    email: '',
-    phoneNumber: '',
-    securityId: '', // ✅ ADDED
-    role: 'Guard',
-    assignedSite: sites[0] ?? '',
-    assignedRoute: '',
-    shiftTiming: '',
-    supervisor: null,
-    loginMethod: 'Email + Password',
-    temporaryPassword: '',
-    forcePasswordReset: false,
-    employeeId: null,
-    gpsValidationRequired: false,
-    offlineScansAllowed: false,
-    dashboardAccess: false,
-    activityLogAccess: false,
-    issueResolutionPermission: false,
+  const [formData, setFormData] = useState<SecurityUser>({
+    security_id: '',
+    security_name: '',
+    security_password: '',
+    factory: factories?.[0] ?? '',
   })
 
+  /* ================= LOAD USER FOR EDIT ================= */
   useEffect(() => {
     if (user) {
-      setFormData(user)
+      setFormData({
+        security_id: user.security_id,
+        security_name: user.security_name,
+        security_password: '',
+        factory: user.factory,
+      })
     }
   }, [user])
 
+  /* ================= HANDLE INPUT ================= */
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value, type } = e.target
+    const { name, value } = e.target
 
-    setFormData((prev: Partial<User>) => ({
+    setFormData(prev => ({
       ...prev,
-      [name]:
-        type === 'checkbox'
-          ? (e.target as HTMLInputElement).checked
-          : value,
+      [name]: value,
     }))
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    onSave(formData) // ✅ REMOVED status logic
+
+    try {
+      if (user) {
+        await updateSecurityUser(user.security_id, {
+          security_name: formData.security_name,
+          factory: formData.factory,
+          ...(formData.security_password
+            ? { security_password: formData.security_password }
+            : {}),
+        })
+      } else {
+        await createSecurityUser(formData)
+      }
+
+      onSave()
+      onClose()
+    } catch (err) {
+      console.error(err)
+      alert('Error saving security user')
+    }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50">
-      <div className="bg-white p-6 rounded-lg max-w-xl mx-auto mt-24">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center">
+      <div className="bg-white p-6 rounded-lg max-w-md w-full mt-24">
         <h2 className="text-xl font-bold mb-4">
-          {user ? 'Edit User' : 'Add User'}
+          {user ? 'Edit Security User' : 'Add Security User'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
-            name="fullName"
-            value={formData.fullName ?? ''}
-            onChange={handleChange}
-            className="w-full border p-2 rounded"
-            placeholder="Full Name"
-          />
-
-          {/* ✅ Security ID */}
-          <input
-            name="securityId"
-            value={formData.securityId ?? ''}
+            name="security_id"
+            value={formData.security_id}
             onChange={handleChange}
             className="w-full border p-2 rounded"
             placeholder="Security ID"
+            required
+            disabled={!!user}
+          />
+
+          <input
+            name="security_name"
+            value={formData.security_name}
+            onChange={handleChange}
+            className="w-full border p-2 rounded"
+            placeholder="Security Name"
+            required
+          />
+
+          <input
+            type="password"
+            name="security_password"
+            value={formData.security_password}
+            onChange={handleChange}
+            className="w-full border p-2 rounded"
+            placeholder={user ? 'New Password (optional)' : 'Password'}
+            required={!user}
           />
 
           <select
-            name="role"
-            value={formData.role}
+            name="factory"
+            value={formData.factory}
             onChange={handleChange}
             className="w-full border p-2 rounded"
+            required
           >
-            <option value="Admin">Admin</option>
-            <option value="Supervisor">Supervisor</option>
-            <option value="Guard">Guard</option>
+            {factories.map(f => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
           </select>
 
-          <RoleBadge role={formData.role as UserRole} />
-
-          {/* ❌ Status (Active / Inactive) REMOVED */}
-
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose}>
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border rounded"
+            >
               Cancel
             </button>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded">
+
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded"
+            >
               Save
             </button>
           </div>

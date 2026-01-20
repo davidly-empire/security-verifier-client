@@ -1,109 +1,107 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import DashboardStatCard from './components/DashboardStatCard';
-import RoundsStatusChart from './components/RoundsStatusChart';
-import AverageRoundTimeCard from './components/AverageRoundTimeCard';
-import DashboardFilters from './components/DashboardFilters';
-import DashboardSkeleton from './components/DashboardSkeleton';
-import DashboardError from './components/DashboardError';
-import DashboardPerformanceCharts from './components/DashboardPerformanceCharts';
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import DashboardStatCard from './components/DashboardStatCard'
+import RoundsStatusChart from './components/RoundsStatusChart'
+import AverageRoundTimeCard from './components/AverageRoundTimeCard'
+import DashboardFilters from './components/DashboardFilters'
+import DashboardSkeleton from './components/DashboardSkeleton'
+import DashboardError from './components/DashboardError'
+import DashboardPerformanceCharts from './components/DashboardPerformanceCharts'
 
-import { mockSiteOptions } from './constants/mockData';
-import { DashboardFilters as DashboardFiltersType } from './types/dashboard';
+import { mockSiteOptions } from './constants/mockData'
+import { DashboardFilters as DashboardFiltersType } from './types/dashboard'
 
 type DashboardAPIResponse = {
-  totalGuards: number;
-  roundsToday: { completed: number; scheduled: number };
-  missedRounds: number;
-  activeAlerts: number;
-  roundStatusData: any[]; 
-  averageRoundTime: number;
-  targetRoundTime: number;
-  attendanceData: any[];
-  completionData: any[];
-};
+  totalGuards: number
+  roundsToday: { completed: number; scheduled: number }
+  missedRounds: number
+  activeAlerts: number
+  roundStatusData: any[]
+  averageRoundTime: number
+  targetRoundTime: number
+  attendanceData: any[]
+  completionData: any[]
+}
 
 export default function Dashboard() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const [filters, setFilters] = useState<DashboardFiltersType>({
     dateRange: {
       start: new Date().toISOString().split('T')[0],
-      end: new Date().toISOString().split('T')[0]
+      end: new Date().toISOString().split('T')[0],
     },
-    site: 'all'
-  });
+    site: 'all',
+  })
 
-  const [dashboardData, setDashboardData] = useState<DashboardAPIResponse | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardAPIResponse | null>(null)
 
-  // 🔹 Backend fetch with proper token and env variable
+  // 🔹 Backend fetch with proper token and redirect on auth failure
   const fetchDashboardData = async () => {
     try {
-      setIsLoading(true);
-      setHasError(false);
+      setIsLoading(true)
+      setHasError(false)
 
-      const token = localStorage.getItem('access_token'); // match login storage
-      if (!token) throw new Error('No auth token found');
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        alert('You must be logged in to access the dashboard')
+        router.push('/login') // redirect to login page
+        return
+      }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (!apiUrl) throw new Error('API URL not set in .env');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      if (!apiUrl) throw new Error('API URL not set in .env')
 
-      const res = await fetch(`${apiUrl}/admin/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${apiUrl}/admin/dashboard?startDate=${filters.dateRange.start}&endDate=${filters.dateRange.end}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
 
-      if (!res.ok) throw new Error('Failed to fetch dashboard');
+      if (res.status === 401) {
+        alert('Session expired. Please log in again.')
+        localStorage.removeItem('access_token')
+        router.push('/login')
+        return
+      }
 
-      const data: DashboardAPIResponse = await res.json();
-      console.log('Dashboard API data:', data);
+      if (!res.ok) throw new Error('Failed to fetch dashboard')
 
-      setDashboardData(data);
-      setIsLoading(false);
+      const data: DashboardAPIResponse = await res.json()
+      console.log('Dashboard API data:', data)
+      setDashboardData(data)
     } catch (error) {
-      console.error('Dashboard fetch error:', error);
-      setHasError(true);
-      setIsLoading(false);
+      console.error('Dashboard fetch error:', error)
+      setHasError(true)
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    fetchDashboardData()
+  }, [filters])
 
   const handleDateRangeChange = (start: string, end: string) => {
-    setFilters(prev => ({
-      ...prev,
-      dateRange: { start, end }
-    }));
-  };
+    setFilters(prev => ({ ...prev, dateRange: { start, end } }))
+  }
 
   const handleSiteChange = (site: string) => {
-    setFilters(prev => ({
-      ...prev,
-      site
-    }));
-  };
+    setFilters(prev => ({ ...prev, site }))
+  }
 
   const handleRetry = () => {
-    fetchDashboardData();
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <DashboardSkeleton />
-      </div>
-    );
+    fetchDashboardData()
   }
 
-  if (hasError || !dashboardData) {
-    return (
-      <div className="p-6">
-        <DashboardError onRetry={handleRetry} />
-      </div>
-    );
-  }
+  if (isLoading) return <DashboardSkeleton />
+
+  if (hasError || !dashboardData)
+    return <DashboardError onRetry={handleRetry} />
 
   return (
     <div className="p-6">
@@ -131,7 +129,9 @@ export default function Dashboard() {
           title="Rounds Today"
           value={`${dashboardData.roundsToday.completed}/${dashboardData.roundsToday.scheduled}`}
           subtitle={`${Math.round(
-            (dashboardData.roundsToday.completed / dashboardData.roundsToday.scheduled) * 100
+            (dashboardData.roundsToday.completed /
+              dashboardData.roundsToday.scheduled) *
+              100
           )}% completed`}
           trend={{ value: 0, isPositive: true }}
         />
@@ -162,5 +162,5 @@ export default function Dashboard() {
         />
       </div>
     </div>
-  );
+  )
 }

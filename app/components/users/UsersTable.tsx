@@ -1,107 +1,130 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import RoleBadge from './RoleBadge';
-import UserActions from './UserActions';
+import { useState } from 'react'
+import { deleteSecurityUser } from '../../api/securityUsers'
+import { SecurityUser } from '@/app/types/securityUser'
 
-export default function UsersTable({ users, onEditUser, onToggleUserStatus }) {
-  const formatDate = (date) => {
-    if (!date) return 'Never';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+interface UsersTableProps {
+  users: SecurityUser[]
+  onEditUser: (user: SecurityUser) => void
+  onRefresh: () => void
+}
+
+export default function UsersTable({
+  users,
+  onEditUser,
+  onRefresh,
+}: UsersTableProps) {
+  const [visiblePasswords, setVisiblePasswords] = useState<
+    Record<string, boolean>
+  >({})
+
+  const togglePassword = (id: string) => {
+    setVisiblePasswords(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }))
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) return
+
+    try {
+      await deleteSecurityUser(id)
+      onRefresh()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to delete user')
+    }
+  }
 
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Name
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Security ID
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Role
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Security Name
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Assigned Site
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Password
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Status
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Factory
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Last Login
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
               Actions
             </th>
           </tr>
         </thead>
+
         <tbody className="bg-white divide-y divide-gray-200">
-          {users.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900">{user.fullName}</div>
-                <div className="text-sm text-gray-500">{user.email}</div>
+          {users.map(user => (
+            <tr
+              key={user.security_id}
+              className="hover:bg-gray-50"
+            >
+              <td className="px-6 py-4 text-sm text-gray-900">
+                {user.security_id}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <RoleBadge role={user.role} />
+
+              <td className="px-6 py-4 text-sm text-gray-900">
+                {user.security_name}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {user.assignedSite}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+
+              <td className="px-6 py-4 text-sm text-gray-900 flex items-center gap-2">
+                {visiblePasswords[user.security_id]
+                  ? user.security_password
+                  : '******'}
+
                 <span
-                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    user.status === 'Active'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}
+                  className="cursor-pointer select-none"
+                  onClick={() =>
+                    togglePassword(user.security_id)
+                  }
                 >
-                  {user.status}
+                  {visiblePasswords[user.security_id]
+                    ? '🙈'
+                    : '👁️'}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatDate(user.lastLogin)}
+
+              <td className="px-6 py-4 text-sm text-gray-900">
+                {user.factory}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <UserActions
-                  user={user}
-                  onEdit={onEditUser}
-                  onToggleStatus={onToggleUserStatus}
-                />
+
+              <td className="px-6 py-4 text-right text-sm font-medium flex gap-3 justify-end">
+                <button
+                  className="text-blue-600 hover:underline"
+                  onClick={() => onEditUser(user)}
+                >
+                  Edit
+                </button>
+
+                <button
+                  className="text-red-600 hover:underline"
+                  onClick={() =>
+                    handleDelete(user.security_id)
+                  }
+                >
+                  Delete
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
       {users.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No users found</p>
+          <p className="text-gray-500">
+            No security users found
+          </p>
         </div>
       )}
     </div>
-  );
+  )
 }

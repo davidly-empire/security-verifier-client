@@ -1,63 +1,71 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { ScanPointsTable, ScanPoint } from "@/app/components/scan/ScanPointsTable";
-import { ScanPointForm } from "@/app/components/scan/ScanPointForm";
+import { useEffect, useState } from 'react'
+import { ScanPointsTable, ScanPoint } from '../components/scan/ScanPointsTable'
+import { ScanPointForm } from '../components/scan/ScanPointForm'
 
 import {
   getScanPointsByFactory,
   createScanPoint,
   updateScanPoint,
-} from "@/api";
+} from '../api/scanPoints.api'
+
+/* ================= TYPES ================= */
 
 interface Factory {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
+type StatusFilter = 'All' | 'Active' | 'Inactive'
+type PriorityFilter = 'All' | 'Low' | 'Medium' | 'High'
+
 export default function ScanPointsPage() {
-  const [scanPoints, setScanPoints] = useState<ScanPoint[]>([]);
-  const [factories, setFactories] = useState<Factory[]>([]);
-  const [selectedFactory, setSelectedFactory] = useState("");
+  const [scanPoints, setScanPoints] = useState<ScanPoint[]>([])
+  const [factories, setFactories] = useState<Factory[]>([])
+  const [selectedFactory, setSelectedFactory] = useState<string>('')
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingScanPoint, setEditingScanPoint] = useState<ScanPoint | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState<boolean>(false)
+  const [editingScanPoint, setEditingScanPoint] = useState<ScanPoint | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
-  const [priorityFilter, setPriorityFilter] = useState<"All" | "Low" | "Medium" | "High">("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('All')
 
   /* ================= LOAD FACTORIES ================= */
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/factories/minimal")
-      .then((res) => res.json())
-      .then((data) => {
-        setFactories(data);
-        if (data.length > 0) setSelectedFactory(data[0].id);
+    fetch('http://127.0.0.1:8000/factories/minimal')
+      .then(res => res.json())
+      .then((data: Factory[]) => {
+        setFactories(data)
+        if (data.length > 0) setSelectedFactory(data[0].id)
       })
-      .catch((err) => console.error("Failed to load factories:", err));
-  }, []);
+      .catch((err: unknown) =>
+        console.error('Failed to load factories:', err)
+      )
+  }, [])
 
   /* ================= LOAD SCAN POINTS ================= */
   useEffect(() => {
-    if (!selectedFactory) return;
+    if (!selectedFactory) return
 
     getScanPointsByFactory(selectedFactory)
-      .then((data) => {
-        setScanPoints(data || []);
+      .then((data: ScanPoint[]) => {
+        setScanPoints(data || [])
       })
-      .catch((err) => {
-        console.error("Failed to load scan points:", err);
-        setScanPoints([]);
-      });
-  }, [selectedFactory]);
+      .catch((err: unknown) => {
+        console.error('Failed to load scan points:', err)
+        setScanPoints([])
+      })
+  }, [selectedFactory])
 
   /* ================= FILTER ================= */
-  const visibleScanPoints = scanPoints.filter((sp) => {
-    if (statusFilter === "Active" && !sp.is_active) return false;
-    if (statusFilter === "Inactive" && sp.is_active) return false;
-    if (priorityFilter !== "All" && sp.risk_level !== priorityFilter) return false;
-    return true;
-  });
+  const visibleScanPoints = scanPoints.filter(sp => {
+    if (statusFilter === 'Active' && !sp.is_active) return false
+    if (statusFilter === 'Inactive' && sp.is_active) return false
+    if (priorityFilter !== 'All' && sp.risk_level !== priorityFilter)
+      return false
+    return true
+  })
 
   return (
     <div className="p-6 min-h-screen bg-gray-50">
@@ -66,8 +74,8 @@ export default function ScanPointsPage() {
         <h1 className="text-2xl font-bold">Scan Points</h1>
         <button
           onClick={() => {
-            setEditingScanPoint(null);
-            setIsFormOpen(true);
+            setEditingScanPoint(null)
+            setIsFormOpen(true)
           }}
           className="px-4 py-2 bg-blue-600 text-white rounded"
         >
@@ -79,10 +87,10 @@ export default function ScanPointsPage() {
       <div className="flex gap-4 mb-6">
         <select
           value={selectedFactory}
-          onChange={(e) => setSelectedFactory(e.target.value)}
+          onChange={e => setSelectedFactory(e.target.value)}
           className="border p-2 rounded"
         >
-          {factories.map((f) => (
+          {factories.map(f => (
             <option key={f.id} value={f.id}>
               {f.name}
             </option>
@@ -91,7 +99,7 @@ export default function ScanPointsPage() {
 
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as any)}
+          onChange={e => setStatusFilter(e.target.value as StatusFilter)}
           className="border p-2 rounded"
         >
           <option value="All">All Status</option>
@@ -101,7 +109,9 @@ export default function ScanPointsPage() {
 
         <select
           value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value as any)}
+          onChange={e =>
+            setPriorityFilter(e.target.value as PriorityFilter)
+          }
           className="border p-2 rounded"
         >
           <option value="All">All Risk Levels</option>
@@ -114,18 +124,20 @@ export default function ScanPointsPage() {
       {/* TABLE */}
       <ScanPointsTable
         scanPoints={visibleScanPoints}
-        onEdit={(sp) => {
-          setEditingScanPoint(sp);
-          setIsFormOpen(true);
+        onEdit={(sp: ScanPoint) => {
+          setEditingScanPoint(sp)
+          setIsFormOpen(true)
         }}
-        onDisable={async (id) => {
+        onDisable={async (id: string) => {
           try {
-            const updated = await updateScanPoint(id, { is_active: false });
-            setScanPoints((prev) =>
-              prev.map((sp) => (sp.id === id ? { ...sp, ...updated } : sp))
-            );
-          } catch (err) {
-            console.error("Failed to disable scan point:", err);
+            const updated = await updateScanPoint(id, { is_active: false })
+            setScanPoints(prev =>
+              prev.map(sp =>
+                sp.id === id ? { ...sp, ...updated } : sp
+              )
+            )
+          } catch (err: unknown) {
+            console.error('Failed to disable scan point:', err)
           }
         }}
       />
@@ -135,26 +147,36 @@ export default function ScanPointsPage() {
         <ScanPointForm
           scanPoint={editingScanPoint}
           onClose={() => setIsFormOpen(false)}
-          onSubmit={async (data) => {
+          onSubmit={async (data: Partial<ScanPoint>) => {
             try {
               if (editingScanPoint) {
-                const updated = await updateScanPoint(editingScanPoint.id, data);
-                setScanPoints((prev) =>
-                  prev.map((sp) => (sp.id === editingScanPoint.id ? { ...sp, ...updated } : sp))
-                );
+                const updated = await updateScanPoint(
+                  editingScanPoint.id,
+                  data
+                )
+                setScanPoints(prev =>
+                  prev.map(sp =>
+                    sp.id === editingScanPoint.id
+                      ? { ...sp, ...updated }
+                      : sp
+                  )
+                )
               } else {
-                const created = await createScanPoint({ ...data, factory_id: selectedFactory });
-                setScanPoints((prev) => [...prev, created]);
+                const created = await createScanPoint({
+                  ...data,
+                  factory_id: selectedFactory,
+                })
+                setScanPoints(prev => [...prev, created])
               }
-            } catch (err) {
-              console.error("Failed to save scan point:", err);
+            } catch (err: unknown) {
+              console.error('Failed to save scan point:', err)
             } finally {
-              setIsFormOpen(false);
-              setEditingScanPoint(null);
+              setIsFormOpen(false)
+              setEditingScanPoint(null)
             }
           }}
         />
       )}
     </div>
-  );
+  )
 }

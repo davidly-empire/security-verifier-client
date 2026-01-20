@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { QRCode } from "@/app/dashboard/qr-crud/page";
+import { QRCode } from "@/app/dashboard/qr-crud/page"; // Frontend type
 
 interface QrActionsProps {
-  qr: QRCode;
+  qr: QRCode; // <-- use QRCode for frontend
   onEdit: (qr: QRCode) => void;
   onView: (qr: QRCode) => void;
-  onToggleStatus: (id: string) => void;
-  onDelete: (id: string) => void;
+  onToggleStatus: (id: string | number) => void;
+  onDelete: (id: string | number) => void;
 }
 
 export default function QrActions({
@@ -22,6 +22,7 @@ export default function QrActions({
 
   return (
     <div className="relative">
+      {/* Actions toggle button */}
       <button
         onClick={() => setShowActions(!showActions)}
         className="text-gray-400 hover:text-gray-500 focus:outline-none"
@@ -36,10 +37,12 @@ export default function QrActions({
           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
         </svg>
       </button>
-      
+
+      {/* Dropdown menu */}
       {showActions && (
         <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
           <div className="py-1">
+            {/* View */}
             <button
               onClick={() => {
                 onView(qr);
@@ -49,6 +52,8 @@ export default function QrActions({
             >
               View
             </button>
+
+            {/* Edit */}
             <button
               onClick={() => {
                 onEdit(qr);
@@ -58,18 +63,22 @@ export default function QrActions({
             >
               Edit
             </button>
+
+            {/* Toggle Status */}
             <button
               onClick={() => {
-                onToggleStatus(qr.id);
+                onToggleStatus(qr.qr_id);
                 setShowActions(false);
               }}
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
             >
-              {qr.status === "Active" ? "Disable" : "Enable"}
+              {qr.status === "active" ? "Disable" : "Enable"}
             </button>
+
+            {/* Delete */}
             <button
               onClick={() => {
-                onDelete(qr.id);
+                onDelete(qr.qr_id);
                 setShowActions(false);
               }}
               className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
