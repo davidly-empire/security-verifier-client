@@ -19,9 +19,9 @@ const Navbar: React.FC = () => {
   { name: 'Dashboard', href: '/dashboard' },
   { name: 'Scanpoints', href: '/scan-points' },
   { name: 'QR', href: '/dashboard/qr-crud' },
-  { name: 'Security Activities', href: '/security-activity' },
-  { name: 'Security Info', href: '/security-info' },
-  { name: 'Add Users', href: '/user-crud' },
+  { name: 'Security Analytics', href: '/analytics/security_analytics' },
+ 
+  { name: 'Users Management', href: '/user-crud' },
   { name: 'Reports', href: '/report-download' },
   { name: 'Factories', href: '/factory' }, // <-- NEW
 ]

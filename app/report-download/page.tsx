@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
 
@@ -9,24 +9,23 @@ import ReportSummaryCards from '@/app/components/reports/ReportSummaryCards';
 import ReportTable from '@/app/components/reports/ReportTable';
 import ReportExport from '@/app/components/reports/ReportExport';
 
-/* ---------------- MOCK DATA ---------------- */
-
-const scanComplianceData = [
-  { id: 1, siteName: 'North Campus', routeName: 'Building A', guardName: 'John', missedScans: 1, compliancePercentage: 93 },
-  { id: 2, siteName: 'South Campus', routeName: 'Parking', guardName: 'Sarah', missedScans: 2, compliancePercentage: 80 },
-];
-
-const guardPerformanceData = [
-  { id: 1, guardName: 'John', missedScans: 3, onTimeScanPercentage: 92 },
-  { id: 2, guardName: 'Sarah', missedScans: 5, onTimeScanPercentage: 85 },
-];
+import {
+  ScanLog,
+  getAllScanLogs,
+  getScanLogsByFactory,
+} from '@/app/api/reports';
 
 /* ---------------- PAGE ---------------- */
 
 export default function ReportDownloadPage() {
-  const [activeTab, setActiveTab] = useState<'scanCompliance' | 'guardPerformance'>(
-    'scanCompliance'
-  );
+  /* ---------- UI STATE ---------- */
+  const [activeTab, setActiveTab] = useState<
+    'scanCompliance' | 'guardPerformance'
+  >('scanCompliance');
+
+  const [reportPeriod, setReportPeriod] = useState<
+    'daily' | 'weekly' | 'monthly' | 'yearly'
+  >('daily');
 
   const [filters, setFilters] = useState({
     dateRange: { start: '', end: '' },
@@ -35,51 +34,68 @@ export default function ReportDownloadPage() {
     guard: '',
   });
 
-  /* 🆕 REPORT PERIOD STATE (DAILY / WEEKLY / MONTHLY / YEARLY) */
-  const [reportPeriod, setReportPeriod] = useState<
-    'daily' | 'weekly' | 'monthly' | 'yearly'
-  >('daily');
+  /* ---------- DATA STATE ---------- */
+  const [logs, setLogs] = useState<ScanLog[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  /* ---------- DATA SWITCH ---------- */
-  const getReportData = () => {
-    switch (activeTab) {
-      case 'scanCompliance':
-        return scanComplianceData;
-      case 'guardPerformance':
-        return guardPerformanceData;
-      default:
-        return [];
+  /* ---------- FETCH DATA ---------- */
+  useEffect(() => {
+    fetchLogs();
+  }, [filters.site]);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const data = filters.site
+        ? await getScanLogsByFactory(filters.site)
+        : await getAllScanLogs();
+      setLogs(data);
+    } catch (err) {
+      console.error('Failed to fetch scan logs', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* ---------- SUMMARY ---------- */
-  const getSummaryData = () => {
-    const data: any[] = getReportData();
+  /* ---------- TRANSFORM DATA FOR REPORTS ---------- */
 
-    if (!data.length) {
-      return { totalRecords: 0, compliancePercentage: 0, missedScans: 0, criticalIssues: 0 };
-    }
+  const scanComplianceData = useMemo(() => {
+    return logs.map((log, index) => ({
+      id: log.id ?? index,
+      siteName: log.factory_code ?? 'N/A',
+      routeName: log.qr_name ?? 'N/A',
+      guardName: log.guard_name ?? 'N/A',
+      missedScans: log.status === 'MISSED' ? 1 : 0,
+      compliancePercentage: log.status === 'SUCCESS' ? 100 : 0,
+    }));
+  }, [logs]);
 
-    if (activeTab === 'scanCompliance') {
-      return {
-        totalRecords: data.length,
-        compliancePercentage: Math.round(
-          data.reduce((a, b) => a + b.compliancePercentage, 0) / data.length
-        ),
-        missedScans: data.reduce((a, b) => a + b.missedScans, 0),
-        criticalIssues: 0,
-      };
-    }
+  const guardPerformanceData = useMemo(() => {
+    const guardMap: Record<
+      string,
+      { missedScans: number; total: number; onTime: number }
+    > = {};
 
-    return {
-      totalRecords: data.length,
-      compliancePercentage: Math.round(
-        data.reduce((a, b) => a + b.onTimeScanPercentage, 0) / data.length
-      ),
-      missedScans: data.reduce((a, b) => a + b.missedScans, 0),
-      criticalIssues: 0,
-    };
-  };
+    logs.forEach((log) => {
+      const guard = log.guard_name ?? 'Unknown';
+      if (!guardMap[guard]) {
+        guardMap[guard] = { missedScans: 0, total: 0, onTime: 0 };
+      }
+
+      guardMap[guard].total += 1;
+      if (log.status === 'MISSED') guardMap[guard].missedScans += 1;
+      if (log.status === 'SUCCESS') guardMap[guard].onTime += 1;
+    });
+
+    return Object.entries(guardMap).map(([guardName, data], idx) => ({
+      id: idx + 1,
+      guardName,
+      missedScans: data.missedScans,
+      onTimeScanPercentage: data.total
+        ? Math.round((data.onTime / data.total) * 100)
+        : 0,
+    }));
+  }, [logs]);
 
   /* ---------------- UI ---------------- */
 
@@ -93,38 +109,20 @@ export default function ReportDownloadPage() {
         </Button>
       </div>
 
-      {/* 🆕 REPORT PERIOD SELECTOR */}
+      {/* REPORT PERIOD SELECTOR */}
       <div className="flex gap-2 mb-6">
-        <Button
-          variant={reportPeriod === 'daily' ? 'default' : 'outline'}
-          onClick={() => setReportPeriod('daily')}
-        >
-          Daily
-        </Button>
-
-        <Button
-          variant={reportPeriod === 'weekly' ? 'default' : 'outline'}
-          onClick={() => setReportPeriod('weekly')}
-        >
-          Weekly
-        </Button>
-
-        <Button
-          variant={reportPeriod === 'monthly' ? 'default' : 'outline'}
-          onClick={() => setReportPeriod('monthly')}
-        >
-          Monthly
-        </Button>
-
-        <Button
-          variant={reportPeriod === 'yearly' ? 'default' : 'outline'}
-          onClick={() => setReportPeriod('yearly')}
-        >
-          Yearly
-        </Button>
+        {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((p) => (
+          <Button
+            key={p}
+            variant={reportPeriod === p ? 'default' : 'outline'}
+            onClick={() => setReportPeriod(p)}
+          >
+            {p.charAt(0).toUpperCase() + p.slice(1)}
+          </Button>
+        ))}
       </div>
 
-      {/* ✅ ONLY 2 TABS – HARD LIMITED */}
+      {/* TABS */}
       <div className="flex gap-2 border-b pb-2 mb-6">
         <Button
           variant={activeTab === 'scanCompliance' ? 'default' : 'outline'}
@@ -144,21 +142,35 @@ export default function ReportDownloadPage() {
       <ReportFilters filters={filters} setFilters={setFilters} />
 
       <div className="my-6">
-        <ReportSummaryCards
-          summaryData={getSummaryData()}
-          reportType={activeTab}
-        />
+        {/* 
+           FIX: 
+           Cast 'logs' to 'any' to bypass the conflict between 
+           the API ScanLog type and the Component ScanLog type.
+        */}
+        <ReportSummaryCards logs={logs as any} />
       </div>
 
       <div className="bg-white rounded-lg shadow p-4">
-        <ReportTable
-          data={getReportData()}
-          reportType={activeTab}
+        {/* 
+           FIX: 
+           ReportTable only accepts 'logs' and 'loading'.
+        */}
+        <ReportTable 
+          logs={logs as any} 
+          loading={loading} 
         />
       </div>
 
       <div className="flex justify-end mt-4">
-        <ReportExport reportType={activeTab} />
+        {/* 
+           FIX: 
+           ReportExport only accepts 'logs'.
+           We pass the raw 'logs' state so it exports the raw data.
+           It does not accept 'reportType' or 'data'.
+        */}
+        <ReportExport 
+          logs={logs as any} 
+        />
       </div>
     </div>
   );

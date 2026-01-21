@@ -1,92 +1,140 @@
-// D:\Security_verifier\client-app\security-verifier-client\app\components\reports\ReportExport.tsx
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
-interface ReportExportProps {
-  reportType: string;
+/**
+ * ✅ DB-aligned ScanLog
+ */
+export interface ScanLog {
+  id: number;
+  guard_name: string | null;
+  qr_id: string | null;
+  qr_name: string | null;
+  lat: number | null;
+  log: number | null;
+  scan_time: string;
+  status: string | null;
+  factory_code: string | null;
 }
 
-const ReportExport: React.FC<ReportExportProps> = ({ reportType }) => {
-  const [exportFormat, setExportFormat] = useState('csv');
+interface ReportExportProps {
+  logs: ScanLog[];
+}
+
+const ReportExport: React.FC<ReportExportProps> = ({ logs }) => {
+  const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const handleExport = () => {
-    // In a real application, this would trigger the export functionality
-    // For this demo, we'll just show an alert
-    alert(`Exporting ${reportType} as ${exportFormat.toUpperCase()}`);
-    setIsDropdownOpen(false);
+  /* ---------------- CSV EXPORT ---------------- */
+  const exportCSV = () => {
+    if (!logs.length) {
+      alert("No data available to export");
+      return;
+    }
+
+    const headers = [
+      "ID",
+      "Guard Name",
+      "QR ID",
+      "QR Name",
+      "Latitude",
+      "Longitude",
+      "Scan Time",
+      "Status",
+      "Factory Code",
+    ];
+
+    const rows = logs.map((log) => [
+      log.id,
+      log.guard_name ?? "",
+      log.qr_id ?? "",
+      log.qr_name ?? "",
+      log.lat ?? "",
+      log.log ?? "",
+      new Date(log.scan_time).toLocaleString(),
+      log.status ?? "",
+      log.factory_code ?? "",
+    ]);
+
+    const csvContent =
+      [headers, ...rows].map((row) => row.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "scan_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const getReportTypeName = () => {
-    switch (reportType) {
-      case 'scanCompliance':
-        return 'Scan Compliance Report';
-      case 'guardPerformance':
-        return 'Guard Performance Report';
-      case 'siteSecurity':
-        return 'Site Security Report';
-      case 'issuesIncidents':
-        return 'Issues & Incidents Report';
-      default:
-        return 'Report';
-    }
+  /* ---------------- PDF EXPORT (STUB) ---------------- */
+  const exportPDF = () => {
+    alert("PDF export will be added next (jsPDF / backend PDF)");
+  };
+
+  const handleExport = () => {
+    if (exportFormat === "csv") exportCSV();
+    if (exportFormat === "pdf") exportPDF();
+    setIsDropdownOpen(false);
   };
 
   return (
     <div className="relative">
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5 mr-2"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+            clipRule="evenodd"
+          />
         </svg>
         Export
       </button>
-      
+
       {isDropdownOpen && (
-        <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-          <div className="py-1">
-            <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
-              Export <span className="font-medium">{getReportTypeName()}</span>
-            </div>
-            <div className="px-4 py-3">
-              <div className="flex items-center mb-3">
-                <input
-                  id="csv"
-                  name="export-format"
-                  type="radio"
-                  value="csv"
-                  checked={exportFormat === 'csv'}
-                  onChange={(e) => setExportFormat(e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <label htmlFor="csv" className="ml-2 block text-sm text-gray-700">
-                  CSV (Comma Separated Values)
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="pdf"
-                  name="export-format"
-                  type="radio"
-                  value="pdf"
-                  checked={exportFormat === 'pdf'}
-                  onChange={(e) => setExportFormat(e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <label htmlFor="pdf" className="ml-2 block text-sm text-gray-700">
-                  PDF (Portable Document Format)
-                </label>
-              </div>
-            </div>
-            <div className="px-4 py-3 border-t border-gray-100">
-              <button
-                onClick={handleExport}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Export Now
-              </button>
-            </div>
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10">
+          <div className="px-4 py-2 text-sm text-gray-700 border-b">
+            Export Scan Report
+          </div>
+
+          <div className="px-4 py-3 space-y-3">
+            <label className="flex items-center text-sm">
+              <input
+                type="radio"
+                checked={exportFormat === "csv"}
+                onChange={() => setExportFormat("csv")}
+                className="mr-2"
+              />
+              CSV
+            </label>
+
+            <label className="flex items-center text-sm">
+              <input
+                type="radio"
+                checked={exportFormat === "pdf"}
+                onChange={() => setExportFormat("pdf")}
+                className="mr-2"
+              />
+              PDF
+            </label>
+          </div>
+
+          <div className="px-4 py-3 border-t">
+            <button
+              onClick={handleExport}
+              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+            >
+              Export Now
+            </button>
           </div>
         </div>
       )}

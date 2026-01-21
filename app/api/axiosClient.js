@@ -3,7 +3,6 @@ import axios from "axios";
 // ---------------------------
 // Base URL
 // ---------------------------
-// Explicitly pointing to your backend to avoid "Network Error"
 const BASE_URL = "http://127.0.0.1:8000"; 
 
 // ---------------------------
@@ -14,6 +13,7 @@ const axiosClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: false, // ⚠️ Explicitly false since we aren't using Auth Cookies
   timeout: 10000, // 10 seconds
 });
 
@@ -22,21 +22,14 @@ const axiosClient = axios.create({
 // ---------------------------
 axiosClient.interceptors.request.use(
   (config) => {
-    // -------------------------------------------------------
-    // FIX: Removed Token logic completely
-    // We don't use JWT anymore, so no Authorization header.
-    // -------------------------------------------------------
-    
     console.log(
-      "Axios Request →",
-      config.method?.toUpperCase(),
-      config.url,
-      config.data ?? {}
+      `🚀 [${config.method?.toUpperCase()}] Requesting →`,
+      `${config.baseURL}${config.url}`
     );
     return config;
   },
   (error) => {
-    console.error("Request Error →", error);
+    console.error("❌ Request Error →", error);
     return Promise.reject(error);
   }
 );
@@ -47,9 +40,8 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => {
     console.log(
-      "Axios Response ←",
+      `✅ [${response.status}] Response ←`,
       response.config.url,
-      response.status,
       response.data
     );
     return response;
@@ -57,17 +49,33 @@ axiosClient.interceptors.response.use(
   (error) => {
     if (!error.response) {
       // Network Error (Server down, wrong URL, or CORS)
-      console.error("Axios Network Error:", error.message);
-    } else {
-      // Server returned an error (400, 500, etc)
       console.error(
-        "Axios Response Error:",
-        error.response.status,
-        error.response.data || error.message
+        "🔥 NETWORK ERROR: Cannot reach backend at",
+        BASE_URL,
+        "\nIs your FastAPI server running?"
+      );
+    } else {
+      // Server returned an error (400, 500, 404, etc)
+      console.error(
+        `🚨 STATUS ${error.response.status} ERROR:`,
+        error.response.data?.detail || error.response.data || error.message
       );
     }
     return Promise.reject(error);
   }
 );
+
+// ---------------------------
+// Helper: Check if Backend is Alive
+// ---------------------------
+export const pingBackend = async () => {
+  try {
+    // Try to hit the root or docs endpoint
+    await axiosClient.get("/");
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
 
 export default axiosClient;

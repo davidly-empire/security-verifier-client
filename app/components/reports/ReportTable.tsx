@@ -1,81 +1,40 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { ReportRow, ReportType } from '@/app/types/report'
+import { ScanLog } from '@/app/api/reports'
 
 interface Column {
-  key: string
+  key: keyof ScanLog
   label: string
 }
 
 interface ReportTableProps {
-  data: ReportRow[]
-  reportType: ReportType
+  logs: ScanLog[]
+  loading: boolean
 }
 
-const ReportTable: React.FC<ReportTableProps> = ({ data, reportType }) => {
+const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
   const [sortConfig, setSortConfig] = useState<{
-    key: string
+    key: keyof ScanLog
     direction: 'asc' | 'desc'
   } | null>(null)
 
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 10
 
-  /* ================= COLUMNS ================= */
+  /* ================= COLUMNS (DB ONLY) ================= */
 
-  const columns: Column[] = useMemo(() => {
-    switch (reportType) {
-      case 'scanCompliance':
-        return [
-          { key: 'siteName', label: 'Site Name' },
-          { key: 'routeName', label: 'Route Name' },
-          { key: 'guardName', label: 'Guard Name' },
-          { key: 'totalScanPoints', label: 'Total Scan Points' },
-          { key: 'completedScans', label: 'Completed Scans' },
-          { key: 'missedScans', label: 'Missed Scans' },
-          { key: 'lateScans', label: 'Late Scans' },
-          { key: 'compliancePercentage', label: 'Compliance %' },
-        ]
-
-      case 'guardPerformance':
-        return [
-          { key: 'guardName', label: 'Guard Name' },
-          { key: 'assignedRoutes', label: 'Assigned Routes' },
-          { key: 'totalScans', label: 'Total Scans' },
-          { key: 'missedScans', label: 'Missed Scans' },
-          { key: 'issuesReported', label: 'Issues Reported' },
-          { key: 'onTimeScanPercentage', label: 'On-Time Scan %' },
-        ]
-
-      case 'siteSecurity':
-        return [
-          { key: 'siteName', label: 'Site Name' },
-          { key: 'guardsAssigned', label: 'Guards Assigned' },
-          { key: 'patrolsCompleted', label: 'Patrols Completed' },
-          { key: 'issuesReported', label: 'Issues Reported' },
-          { key: 'emergencyAlerts', label: 'Emergency Alerts' },
-          { key: 'missedScans', label: 'Missed Scans' },
-        ]
-
-      case 'issuesIncidents':
-        return [
-          { key: 'issueType', label: 'Issue Type' },
-          { key: 'severity', label: 'Severity' },
-          { key: 'site', label: 'Site' },
-          { key: 'location', label: 'Location' },
-          { key: 'reportedBy', label: 'Reported By' },
-          { key: 'status', label: 'Status' },
-        ]
-
-      default:
-        return []
-    }
-  }, [reportType])
+  const columns: Column[] = [
+    { key: 'scan_time', label: 'Scan Time' },
+    { key: 'factory_code', label: 'Factory' },
+    { key: 'guard_name', label: 'Guard' },
+    { key: 'qr_name', label: 'Scan Point' },
+    { key: 'status', label: 'Status' },
+  ]
 
   /* ================= SORTING ================= */
 
-  const handleSort = (key: string) => {
+  const handleSort = (key: keyof ScanLog) => {
     let direction: 'asc' | 'desc' = 'asc'
     if (sortConfig?.key === key && sortConfig.direction === 'asc') {
       direction = 'desc'
@@ -84,17 +43,19 @@ const ReportTable: React.FC<ReportTableProps> = ({ data, reportType }) => {
   }
 
   const sortedData = useMemo(() => {
-    if (!sortConfig) return data
+    if (!sortConfig) return logs
 
-    return [...data].sort((a, b) => {
-      const aValue = (a as any)[sortConfig.key]
-      const bValue = (b as any)[sortConfig.key]
+    return [...logs].sort((a, b) => {
+      const aValue = a[sortConfig.key]
+      const bValue = b[sortConfig.key]
+
+      if (!aValue || !bValue) return 0
 
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
       return 0
     })
-  }, [data, sortConfig])
+  }, [logs, sortConfig])
 
   /* ================= PAGINATION ================= */
 
@@ -105,39 +66,40 @@ const ReportTable: React.FC<ReportTableProps> = ({ data, reportType }) => {
 
   /* ================= CELL RENDER ================= */
 
-  const renderCell = (row: ReportRow, key: string) => {
-    const value = (row as any)[key]
+  const renderCell = (row: ScanLog, key: keyof ScanLog) => {
+    const value = row[key]
 
-    if (key === 'severity') {
-      const color =
-        value === 'Critical'
-          ? 'bg-red-100 text-red-800'
-          : value === 'High'
-          ? 'bg-orange-100 text-orange-800'
-          : value === 'Medium'
-          ? 'bg-yellow-100 text-yellow-800'
-          : 'bg-blue-100 text-blue-800'
-
-      return <span className={`px-2 py-1 rounded-full text-xs ${color}`}>{value}</span>
+    if (key === 'scan_time' && value) {
+      return new Date(value as string).toLocaleString()
     }
 
     if (key === 'status') {
       const color =
-        value === 'Open'
+        value === 'SUCCESS'
+          ? 'bg-green-100 text-green-800'
+          : value === 'MISSED'
           ? 'bg-red-100 text-red-800'
-          : 'bg-green-100 text-green-800'
+          : 'bg-gray-100 text-gray-800'
 
-      return <span className={`px-2 py-1 rounded-full text-xs ${color}`}>{value}</span>
+      return (
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
+          {value ?? 'UNKNOWN'}
+        </span>
+      )
     }
 
-    if (key.toLowerCase().includes('percentage')) {
-      return `${value}%`
-    }
-
-    return value
+    return value ?? '—'
   }
 
   /* ================= UI ================= */
+
+  if (loading) {
+    return <div className="text-center py-6">Loading scan logs...</div>
+  }
+
+  if (!logs.length) {
+    return <div className="text-center py-6">No scan records found</div>
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -158,7 +120,7 @@ const ReportTable: React.FC<ReportTableProps> = ({ data, reportType }) => {
 
         <tbody className="bg-white divide-y divide-gray-200">
           {currentRows.map((row) => (
-            <tr key={row.id}>
+            <tr key={row.id} className="hover:bg-gray-50">
               {columns.map((col) => (
                 <td key={col.key} className="px-6 py-4 text-sm">
                   {renderCell(row, col.key)}
@@ -170,21 +132,23 @@ const ReportTable: React.FC<ReportTableProps> = ({ data, reportType }) => {
       </table>
 
       {totalPages > 1 && (
-        <div className="mt-4 flex justify-between">
+        <div className="mt-4 flex justify-between items-center">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
+            className="px-3 py-1 border rounded disabled:opacity-50"
           >
             Previous
           </button>
 
-          <span>
+          <span className="text-sm">
             Page {currentPage} of {totalPages}
           </span>
 
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
+            className="px-3 py-1 border rounded disabled:opacity-50"
           >
             Next
           </button>
