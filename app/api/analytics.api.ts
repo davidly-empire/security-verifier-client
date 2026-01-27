@@ -1,12 +1,12 @@
-// FIXED IMPORT: Ensuring we import the default export from the correct file
-import axiosClient from "./axiosClient.js";
+// FIXED IMPORT
+import axios from "./axiosClient.js";
 
 /* =====================================================
-   TYPES
+   TYPES (UPDATED TO MATCH BACKEND STRUCTURE)
 ===================================================== */
 
 export interface AnalyticsOverview {
-  total_scans: number;
+  total_expected_rounds: number;
   active_guards: number;
   inactive_guards: number;
   missed_scans: number;
@@ -24,27 +24,48 @@ export interface MissedScansResponse {
 }
 
 /* =====================================================
-   NEW: Guard Performance Types
+   ADDED: MISSING TYPES TO FIX ERRORS
 ===================================================== */
 
-export interface MissedRoundDetail {
-  expected_time: string;
-  status: "MISSED";
-}
-
-export interface GuardPerformance {
+// Define the structure for the guard performance report
+// Adjust these properties if your backend returns different data
+export interface GuardPerformanceMetric {
   guard_name: string;
-  total_expected: number;
-  missed_count: number;
-  on_time_count: number;
-  efficiency: number;
-  missed_details: MissedRoundDetail[];
+  total_points: number;
+  scanned_points: number;
+  missed_points: number;
+  performance_score?: number;
 }
 
 export interface GuardPerformanceResponse {
-  date: string;
-  total_guards_analyzed: number;
-  report: GuardPerformance[];
+  target_date: string;
+  metrics: GuardPerformanceMetric[];
+}
+
+// Define the structure for the process scans response
+export interface ProcessResponse {
+  success: boolean;
+  message: string;
+  processed_count?: number;
+}
+
+/* =====================================================
+   NEW: Dashboard Charts Types
+===================================================== */
+
+export interface ScanActivity {
+  time: string;
+  scans: number;
+}
+
+export interface GuardChartData {
+  name: string;
+  scans: number;
+}
+
+export interface DashboardChartsResponse {
+  activity_data: ScanActivity[];
+  guard_data: GuardChartData[];
 }
 
 /* =====================================================
@@ -55,7 +76,7 @@ export interface GuardPerformanceResponse {
  * 🔹 Dashboard overview KPIs
  */
 export const getAnalyticsOverview = async (): Promise<AnalyticsOverview> => {
-  const response = await axiosClient.get("/analytics/overview");
+  const response = await axios.get("/analytics/overview");
   return response.data;
 };
 
@@ -63,7 +84,7 @@ export const getAnalyticsOverview = async (): Promise<AnalyticsOverview> => {
  * 🔹 Scans grouped by guard
  */
 export const getScansByGuard = async (): Promise<GuardScan[]> => {
-  const response = await axiosClient.get("/analytics/scans-by-guard");
+  const response = await axios.get("/analytics/scans-by-guard");
   return response.data;
 };
 
@@ -73,26 +94,44 @@ export const getScansByGuard = async (): Promise<GuardScan[]> => {
 export const getMissedScans = async (
   factoryCode: string
 ): Promise<MissedScansResponse> => {
-  const response = await axiosClient.get("/analytics/missed-scans", {
+  const response = await axios.get("/analytics/missed-scans", {
     params: { factory_code: factoryCode },
   });
   return response.data;
 };
 
 /**
- * 🔹 Guard Performance Report (Missed vs On-Time)
- * 
- * Calculates compliance based on time windows:
- * - Day (6AM - 9PM): Every 1 Hour
- * - Night (9PM - 5:30AM): Every 30 Mins
- * 
- * Pass date in format YYYY-MM-DD
+ * 🔹 Guard Performance Report
  */
 export const getGuardPerformance = async (
   date: string
 ): Promise<GuardPerformanceResponse> => {
-  const response = await axiosClient.get("/analytics/guard-performance", {
+  const response = await axios.get("/analytics/guard-performance", {
     params: { target_date: date },
+  });
+  return response.data;
+};
+
+/**
+ * 🔹 Dashboard Charts Data
+ */
+export const getDashboardCharts = async (
+  factoryCode?: string 
+): Promise<DashboardChartsResponse> => {
+  const response = await axios.get("/analytics/dashboard-charts", {
+    params: { factory_code: factoryCode },
+  });
+  return response.data;
+};
+
+/**
+ * 🔹 Process Scans API
+ */
+export const processScans = async (
+  target_date: string
+): Promise<ProcessResponse> => {
+  const response = await axios.post("/analytics/process-scans", {
+    params: { target_date: target_date },
   });
   return response.data;
 };
