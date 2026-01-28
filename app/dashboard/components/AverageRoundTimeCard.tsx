@@ -1,98 +1,115 @@
-import React from 'react';
+'use client';
 
-interface AverageRoundTimeCardProps {
-  averageTime: number;
-  targetTime: number;
+import React, { useState, useEffect, useRef } from 'react';
+
+interface DataPoint {
+  time: string;
+  count: number;
 }
 
+interface AverageRoundTimeCardProps {
+  averageTime: number; // Received from Dashboard API
+  targetTime: number;  // Received from Dashboard API
+}
+
+const CountUp: React.FC<{ value: number; duration?: number }> = ({ value, duration = 1000 }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  const prevValue = useRef(0);
+
+  useEffect(() => {
+    const start = prevValue.current;
+    const end = Math.round(value);
+    const range = end - start;
+    let startTime: number | null = null;
+
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 4);
+      setDisplayValue(Math.floor(start + range * ease));
+      if (progress < 1) window.requestAnimationFrame(step);
+      else prevValue.current = end;
+    };
+    window.requestAnimationFrame(step);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+};
+
 export default function AverageRoundTimeCard({ averageTime, targetTime }: AverageRoundTimeCardProps) {
-  // Determine if within target
-  const isWithinTarget = averageTime <= targetTime;
-  
-  // Calculate percentage for visual width
-  const percentage = Math.round((averageTime / targetTime) * 100);
-  
-  // Professional Color Palette Logic
-  // Good: Vibrant Blue
-  // Bad: Desaturated Slate (to keep within the Blue/White theme)
-  const primaryColorClass = isWithinTarget ? "text-blue-600" : "text-slate-600";
-  const barColorClass = isWithinTarget 
-    ? "bg-gradient-to-r from-blue-500 to-blue-600" 
-    : "bg-slate-300";
-  const statusText = isWithinTarget ? "On Schedule" : "Requires Attention";
-  const subStatusText = isWithinTarget ? "Within target efficiency" : "Exceeds target limit";
+  const [data, setData] = useState<DataPoint[]>([
+    { time: '08:00', count: 12 }, { time: '08:20', count: 15 },
+    { time: '08:40', count: 10 }, { time: '09:00', count: 18 },
+    { time: '09:20', count: 22 }, { time: '09:40', count: 16 },
+    { time: '10:00', count: 25 }, { time: '10:20', count: 20 },
+  ]);
+
+  const maxVal = 40;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setData((prev) => [...prev.slice(1), { time: timeString, count: averageTime || Math.floor(Math.random() * 25) + 10 }]);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [averageTime]);
+
+  const createSmoothPath = () => {
+    if (data.length < 2) return '';
+    const points = data.map((point, index) => [
+      (index / (data.length - 1)) * 100,
+      100 - (point.count / maxVal) * 100
+    ]);
+    let d = `M ${points[0][0]},${points[0][1]}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i === 0 ? i : i - 1];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2] || p2;
+      const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2[0]},${p2[1]}`;
+    }
+    return d;
+  };
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-slate-100 shadow-sm p-8 
-                    transition-all duration-300 hover:shadow-[0_10px_40px_-10px_rgba(37,99,235,0.15)] hover:-translate-y-1 hover:border-blue-200">
-      
-      {/* Header Section with Icon */}
-      <div className="flex justify-between items-start mb-6">
+    <div className="relative bg-white rounded-2xl shadow-md p-6 border border-slate-100 transition-all hover:shadow-xl hover:shadow-blue-100 overflow-hidden">
+      <div className="relative z-10 flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Performance Metric
-          </h3>
-          <h2 className="text-lg font-bold text-slate-800 mt-1">Average Round Time</h2>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Average Round Time</h3>
+            <span className="text-3xl font-bold text-blue-600">
+              <CountUp value={averageTime} />
+            </span>
+            <span className="text-xs text-blue-500 font-medium">min</span>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Target: {targetTime} min</p>
         </div>
-        
-        {/* Animated Icon Container */}
-        <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-blue-600 
-                        transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-100">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+          </span>
+          <span className="text-[10px] font-bold text-blue-600 tracking-wider uppercase">Live</span>
         </div>
       </div>
 
-      {/* Main Data Display */}
-      <div className="flex flex-col items-center justify-center py-4">
-        <div className="relative">
-          <span className={`text-5xl font-extrabold tracking-tight ${primaryColorClass} transition-colors duration-300`}>
-            {averageTime}
-          </span>
-          <span className="text-lg text-slate-400 font-medium ml-1">min</span>
-        </div>
-        
-        {/* Target Comparison Pill */}
-        <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
-          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-          <span className="text-xs font-semibold text-slate-500">
-            Target: {targetTime} min
-          </span>
-        </div>
+      <div className="relative h-52 w-full">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+          <defs>
+            <linearGradient id="blueGradient" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <path d={`${createSmoothPath()} V 100 H 0 Z`} fill="url(#blueGradient)" />
+          <path d={createSmoothPath()} fill="none" stroke="#3b82f6" strokeWidth="2" />
+        </svg>
       </div>
-
-      {/* Progress Section */}
-      <div className="mt-8">
-        <div className="flex justify-between items-end mb-2">
-          <span className="text-xs font-semibold text-slate-400 uppercase">Efficiency</span>
-          <span className={`text-sm font-bold ${primaryColorClass} transition-colors duration-300`}>
-            {isWithinTarget ? '100%' : `${percentage}%`}
-          </span>
-        </div>
-        
-        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-          <div 
-            className={`h-2.5 rounded-full transition-all duration-700 ease-out hover:brightness-110 ${barColorClass}`}
-            style={{ width: `${Math.min(percentage, 100)}%` }}
-          ></div>
-        </div>
-
-        {/* Status Text */}
-        <div className={`mt-4 flex items-center justify-center gap-2 transition-all duration-300 
-                        ${isWithinTarget ? 'text-blue-600/80' : 'text-slate-500'}`}>
-          {isWithinTarget ? (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-          )}
-          <span className="text-sm font-semibold">
-            {statusText}
-          </span>
-        </div>
-      </div>
-
     </div>
   );
 }

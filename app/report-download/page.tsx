@@ -8,7 +8,7 @@ import { FileDown, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'luci
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
 
-// Import the new Component
+// Import the components (assuming these exist based on your file)
 import ReportTabs from '@/app/components/reports/ReportTabs';
 import ReportFilters from '@/app/components/reports/ReportFilters'; 
 import ReportSummaryCards from '@/app/components/reports/ReportSummaryCards';
@@ -464,35 +464,48 @@ export default function ReportDownloadPage() {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             
-            {/* --- LEFT COLUMN: FILTERS --- */}
+            {/* --- LEFT COLUMN: FILTERS & ACTION --- */}
             <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                {/* Using the new ReportFilters Component which handles Stacking and Tabs */}
-                <ReportFilters 
-                  filters={filters} 
-                  setFilters={setFilters}
-                />
-              </div>
+              {/* 
+                 CHANGED: Wrapped filters and download button in a single card 
+                 to keep the action "near the filter tab".
+              */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+                
+                {/* Filter Section */}
+                <div className="p-6 flex-grow">
+                  <div className="mb-4 pb-4 border-b border-slate-100">
+                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Report Configuration</h3>
+                  </div>
+                  <ReportFilters 
+                    filters={filters} 
+                    setFilters={setFilters}
+                  />
+                </div>
 
-              {/* --- DOWNLOAD BUTTON (Moved Here) --- */}
-              <div className="fade-in-slide">
-                <Button 
-                  onClick={handleDownloadPatrolReport} 
-                  disabled={downloadingPatrol}
-                  className="w-full group flex items-center justify-center gap-2 shadow-md hover:bg-slate-800 bg-slate-900 text-white px-6 py-4 rounded-xl transition-all duration-300"
-                >
-                  {downloadingPatrol ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin"></div>
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <FileDown className="w-4 h-4" />
-                      Download PDF
-                    </>
-                  )}
-                </Button>
+                {/* Action Section (Download Button) */}
+                <div className="p-6 bg-slate-50 border-t border-slate-200 fade-in-slide">
+                  <Button 
+                    onClick={handleDownloadPatrolReport} 
+                    disabled={downloadingPatrol}
+                    className="w-full group flex items-center justify-center gap-2 shadow-md hover:bg-slate-800 bg-slate-900 text-white px-6 py-3 rounded-xl transition-all duration-300"
+                  >
+                    {downloadingPatrol ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <FileDown className="w-4 h-4" />
+                        Download PDF Report
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-[10px] text-center text-slate-400 mt-2">
+                      Requires Site and Start Date selection
+                  </p>
+                </div>
               </div>
             </div>
 
