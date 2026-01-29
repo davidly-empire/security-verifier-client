@@ -53,40 +53,62 @@ export const FactoryForm = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-2 p-4 border rounded bg-white shadow"
+      className="space-y-6"
     >
-      <div className="flex flex-col md:flex-row md:gap-2">
-        <input
-          type="text"
-          placeholder="Factory Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+        
+        {/* Factory Name Input (Takes up 5 cols) */}
+        <div className="md:col-span-5">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+            Factory Name
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. North Warehouse"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all placeholder:text-slate-400"
+          />
+        </div>
 
-        <input
-          type="text"
-          placeholder="Factory Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="border p-2 rounded w-full"
-          disabled={!!initialData}
-        />
+        {/* Factory Code Input (Takes up 3 cols) */}
+        <div className="md:col-span-3">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+            Code
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. F-01"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            disabled={!!initialData}
+            className="w-full bg-white border border-slate-200 text-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+          />
+        </div>
 
-        <input
-          type="text"
-          placeholder="Location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
+        {/* Location Input (Takes up 4 cols) */}
+        <div className="md:col-span-4">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+            Location (Optional)
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Building A"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all placeholder:text-slate-400"
+          />
+        </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex items-center gap-3 pt-2">
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="px-6 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-200 flex items-center gap-2"
         >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
           {initialData ? 'Update Factory' : 'Add Factory'}
         </button>
 
@@ -94,7 +116,7 @@ export const FactoryForm = ({
           <button
             type="button"
             onClick={onCancel}
-            className="bg-gray-400 text-white px-4 py-2 rounded"
+            className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 hover:text-slate-800 transition-all duration-200"
           >
             Cancel
           </button>

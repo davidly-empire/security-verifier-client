@@ -1,4 +1,3 @@
-// app/dashboard/scan-points/components/StatusBadge.tsx
 "use client";
 
 import React from "react";
@@ -8,18 +7,39 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-  const getStatusColor = (status: string) => {
-    return status === "Active"
-      ? "bg-green-100 text-green-800"
-      : "bg-gray-100 text-gray-800";
+  /* 
+    PROFESSIONAL COLOR PALETTE (Strict Blue & White):
+    - Active: Vibrant Royal Blue (Action/Success in this theme)
+    - Inactive: Muted Slate (Neutral/Secondary)
+  */
+  const getStatusStyle = (status: string) => {
+    if (status === "Active") {
+      return "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm shadow-blue-500/5";
+    }
+    // Inactive
+    return "bg-slate-100 text-slate-500 border border-slate-200";
+  };
+
+  const getStatusDot = (status: string) => {
+    if (status === "Active") {
+      return "bg-blue-600 shadow-sm shadow-blue-600/50";
+    }
+    return "bg-slate-400";
   };
 
   return (
     <span
-      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 hover:ring-2 hover:ring-offset-1 hover:ring-blue-100 ${getStatusStyle(
         status
       )}`}
     >
+      {/* Status Dot with subtle animation if active */}
+      <span 
+        className={`h-1.5 w-1.5 rounded-full ${getStatusDot(status)} ${
+          status === "Active" ? "animate-pulse" : ""
+        }`}
+      ></span>
+      
       {status}
     </span>
   );

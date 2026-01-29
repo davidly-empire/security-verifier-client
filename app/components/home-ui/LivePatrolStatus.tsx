@@ -1,4 +1,5 @@
 // app/components/home-ui/LivePatrolStatus.tsx
+
 interface Patrol {
   id: number;
   guardName: string;
@@ -13,62 +14,113 @@ interface LivePatrolStatusProps {
 }
 
 export function LivePatrolStatus({ patrols }: LivePatrolStatusProps) {
-  const getProgressColor = (progress: number) => {
-    if (progress >= 75) return 'bg-green-500';
-    if (progress >= 50) return 'bg-blue-500';
-    if (progress >= 25) return 'bg-yellow-500';
+  /* 
+    REFINED COLOR PALETTE (Strict Blue & White):
+    - High Progress (>75%): Vibrant Blue (Primary)
+    - Medium Progress (>50%): Slate Blue (Subtle)
+    - Low Progress (<50%): Desaturated Slate (Attention)
+    - Very Low (<25%): Red (Critical Alert)
+  */
+  const getProgressStyle = (progress: number) => {
+    if (progress >= 75) return 'bg-blue-600';
+    if (progress >= 50) return 'bg-indigo-500';
+    if (progress >= 25) return 'bg-slate-400';
     return 'bg-red-500';
   };
 
+  const getAvatarGradient = (name: string) => {
+    // Simple hash to pick a color from a blue-ish palette
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colors = [
+      'bg-blue-600', 'bg-blue-700', 'bg-indigo-600', 
+      'bg-cyan-600', 'bg-sky-600', 'bg-teal-600'
+    ];
+    return colors[hash % colors.length];
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 h-full">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">Live Patrol Status</h2>
-        <div className="flex items-center">
-          <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-          <span className="text-sm text-gray-600">Live</span>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm h-full flex flex-col hover:shadow-md transition-shadow duration-300">
+      
+      {/* Header */}
+      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/95">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Live Patrol Status</h2>
+          <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Active Sessions</p>
+        </div>
+        
+        <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Live</span>
         </div>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      {/* Table Body */}
+      <div className="flex-1 overflow-x-auto p-4">
+        <table className="w-full min-w-[500px]">
           <thead>
-            <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <th className="pb-3">Guard</th>
-              <th className="pb-3">Route</th>
-              <th className="pb-3">Time</th>
-              <th className="pb-3">Progress</th>
+            <tr className="text-left border-b border-slate-100">
+              <th className="pb-3 pl-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Guard</th>
+              <th className="pb-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Route</th>
+              <th className="pb-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Duration</th>
+              <th className="pb-3 text-right pr-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Progress</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {patrols.map((patrol) => (
-              <tr key={patrol.id} className="hover:bg-gray-50">
-                <td className="py-3">
-                  <div className="flex items-center">
-                    <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-medium text-gray-700">
-                      {patrol.guardName.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div className="ml-3 text-sm font-medium text-gray-900">{patrol.guardName}</div>
-                  </div>
-                </td>
-                <td className="py-3 text-sm text-gray-700">{patrol.routeName}</td>
-                <td className="py-3 text-sm text-gray-500">
-                  <div>{patrol.startTime}</div>
-                  <div className="text-xs">- {patrol.expectedEndTime}</div>
-                </td>
-                <td className="py-3">
-                  <div className="flex items-center">
-                    <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
-                      <div 
-                        className={`h-2 rounded-full ${getProgressColor(patrol.progress)}`}
-                        style={{ width: `${patrol.progress}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{patrol.progress}%</span>
+          <tbody className="divide-y divide-slate-100">
+            {patrols.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="py-12 text-center text-slate-400">
+                  <div className="flex flex-col items-center">
+                    <svg className="w-8 h-8 mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm font-medium">No active patrols</p>
                   </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              patrols.map((patrol) => (
+                <tr key={patrol.id} className="hover:bg-slate-50 transition-colors duration-150 group">
+                  
+                  {/* Guard Column */}
+                  <td className="py-4 pl-2 align-middle">
+                    <div className="flex items-center">
+                      <div className={`h-9 w-9 rounded-full ${getAvatarGradient(patrol.guardName)} flex items-center justify-center text-xs font-bold text-white shadow-sm ring-2 ring-white`}>
+                        {patrol.guardName.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div className="ml-3">
+                        <div className="text-sm font-bold text-slate-800">{patrol.guardName}</div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Route Column */}
+                  <td className="py-4 align-middle">
+                    <div className="text-sm text-slate-700 font-medium">{patrol.routeName}</div>
+                  </td>
+
+                  {/* Time Column */}
+                  <td className="py-4 align-middle">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-slate-800 font-medium">{patrol.startTime}</span>
+                      <span className="text-xs text-slate-400 mt-0.5">End: {patrol.expectedEndTime}</span>
+                    </div>
+                  </td>
+
+                  {/* Progress Column */}
+                  <td className="py-4 pr-4 align-middle">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ease-out ${getProgressStyle(patrol.progress)}`}
+                          style={{ width: `${patrol.progress}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs font-bold text-slate-600 min-w-[3rem] text-right">{patrol.progress}%</span>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

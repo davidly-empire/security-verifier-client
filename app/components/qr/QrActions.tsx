@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { QRCode } from "@/app/dashboard/qr-crud/page"; // Frontend type
+import { QRCode } from "@/app/dashboard/qr-crud/page";
+import { MoreHorizontal, Eye, Edit, Power, Trash2 } from "lucide-react"; // Using Lucide for professional icons
 
 interface QrActionsProps {
-  qr: QRCode; // <-- use QRCode for frontend
+  qr: QRCode;
   onEdit: (qr: QRCode) => void;
   onView: (qr: QRCode) => void;
   onToggleStatus: (id: string | number) => void;
@@ -22,35 +23,36 @@ export default function QrActions({
 
   return (
     <div className="relative">
-      {/* Actions toggle button */}
+      {/* Trigger Button */}
       <button
         onClick={() => setShowActions(!showActions)}
-        className="text-gray-400 hover:text-gray-500 focus:outline-none"
+        className="h-8 w-8 flex items-center justify-center rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
       >
-        <svg
-          className="h-5 w-5"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-        </svg>
+        <MoreHorizontal className="w-4 h-4" />
       </button>
 
-      {/* Dropdown menu */}
+      {/* Dropdown Menu */}
       {showActions && (
-        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
-          <div className="py-1">
+        <>
+          {/* Backdrop (Click outside) */}
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setShowActions(false)}
+          ></div>
+
+          {/* Menu Card */}
+          <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl shadow-slate-200/40 py-1.5 z-20 animate-in fade-in zoom-in-95 duration-200">
+            
             {/* View */}
             <button
               onClick={() => {
                 onView(qr);
                 setShowActions(false);
               }}
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors rounded-md mx-1"
             >
-              View
+              <Eye className="w-4 h-4" />
+              View QR Code
             </button>
 
             {/* Edit */}
@@ -59,9 +61,10 @@ export default function QrActions({
                 onEdit(qr);
                 setShowActions(false);
               }}
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors rounded-md mx-1"
             >
-              Edit
+              <Edit className="w-4 h-4" />
+              Edit Details
             </button>
 
             {/* Toggle Status */}
@@ -70,10 +73,14 @@ export default function QrActions({
                 onToggleStatus(qr.qr_id);
                 setShowActions(false);
               }}
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors rounded-md mx-1"
             >
-              {qr.status === "active" ? "Disable" : "Enable"}
+              <Power className="w-4 h-4" />
+              {qr.status === "active" ? "Disable Code" : "Enable Code"}
             </button>
+
+            {/* Delete Divider */}
+            <div className="my-1 mx-2 border-t border-slate-100"></div>
 
             {/* Delete */}
             <button
@@ -81,12 +88,13 @@ export default function QrActions({
                 onDelete(qr.qr_id);
                 setShowActions(false);
               }}
-              className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors rounded-md mx-1"
             >
+              <Trash2 className="w-4 h-4" />
               Delete
             </button>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

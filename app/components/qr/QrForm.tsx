@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { QRCode, Factory } from "@/app/dashboard/qr-crud/page";
+import { X, MapPin, Save, Loader2 } from "lucide-react";
 
-// CORRECTED INTERFACE: Includes 'qr', 'isEditMode', 'onSave', 'onClose'
 interface QrFormProps {
   qr: QRCode | null;
   factories: Factory[];
@@ -13,6 +13,8 @@ interface QrFormProps {
 }
 
 export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: QrFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   // Initialize form state
   const [formData, setFormData] = useState<QRCode>({
     qr_id: 0,
@@ -28,7 +30,6 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
     if (qr) {
       setFormData(qr);
     } else if (factories.length > 0) {
-      // Defaults for new QR
       setFormData({
         qr_id: 0,
         qr_name: "",
@@ -42,115 +43,155 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     // Basic validation
     if (!formData.qr_name || !formData.factory_code) {
       alert("Please fill in Name and Factory.");
       return;
     }
-    await onSave(formData);
+
+    setIsSubmitting(true);
+    try {
+      await onSave(formData);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            {isEditMode ? "Edit QR Code" : "Add QR Code"}
-          </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300"
+        onClick={onClose}
+      ></div>
+
+      {/* Modal Card */}
+      <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl shadow-blue-900/10 z-10 transform transition-all">
+        
+        {/* Header */}
+        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur">
+          <div>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {isEditMode ? "Edit QR Code" : "Add QR Code"}
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+              {isEditMode ? "Update checkpoint details." : "Register a new checkpoint."}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 focus:outline-none"
+            className="h-10 w-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all duration-200"
           >
-            <span className="sr-only">Close</span>
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          
           {/* Factory Select */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Factory</label>
-            <select
-              value={formData.factory_code}
-              onChange={(e) => setFormData({ ...formData, factory_code: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              required
-            >
-              {factories.map((f) => (
-                <option key={f.factory_code} value={f.factory_code}>
-                  {f.factory_name}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Factory Location</label>
+            <div className="relative group">
+              <select
+                value={formData.factory_code}
+                onChange={(e) => setFormData({ ...formData, factory_code: e.target.value })}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all cursor-pointer"
+                required
+              >
+                {factories.map((f) => (
+                  <option key={f.factory_code} value={f.factory_code}>
+                    {f.factory_name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-blue-500 transition-colors duration-200">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
           </div>
 
           {/* QR Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">QR Name</label>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">QR Name / Code</label>
             <input
               type="text"
               value={formData.qr_name}
               onChange={(e) => setFormData({ ...formData, qr_name: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
+              placeholder="e.g. Main Entrance A"
               required
             />
           </div>
 
-          {/* Coordinates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Latitude</label>
-              <input
-                type="number"
-                step="any"
-                value={formData.lat}
-                onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) || 0 })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Longitude</label>
-              <input
-                type="number"
-                step="any"
-                value={formData.lon}
-                onChange={(e) => setFormData({ ...formData, lon: parseFloat(e.target.value) || 0 })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                required
-              />
-            </div>
+          {/* Coordinates Grid */}
+          <div className="space-y-2">
+             <div className="flex items-center gap-2 mb-2">
+               <MapPin className="w-4 h-4 text-blue-600" />
+               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">GPS Coordinates</label>
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+               <input
+                 type="number"
+                 step="any"
+                 value={formData.lat}
+                 onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) || 0 })}
+                 className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
+                 placeholder="Latitude"
+                 required
+               />
+               <input
+                 type="number"
+                 step="any"
+                 value={formData.lon}
+                 onChange={(e) => setFormData({ ...formData, lon: parseFloat(e.target.value) || 0 })}
+                 className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
+                 placeholder="Longitude"
+                 required
+               />
+             </div>
           </div>
 
           {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Status</label>
+            <div className="relative group">
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all cursor-pointer"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-blue-500 transition-colors duration-200">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-white hover:shadow-sm hover:text-slate-900 transition-all duration-200 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-200 flex items-center gap-2 disabled:opacity-70"
             >
-              Save
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {isSubmitting ? "Saving..." : "Save QR Code"}
             </button>
           </div>
         </form>

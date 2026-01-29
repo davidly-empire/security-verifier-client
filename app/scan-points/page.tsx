@@ -31,21 +31,27 @@ export default function ScanPointsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('All')
 
-  /* ================= LOAD FACTORIES ================= */
+   /* ================= LOAD FACTORIES ================= */
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/factories/minimal')
+    const API_BASE_URL = 'http://127.0.0.1:8000'; // Move to .env file in production
+    const FACTORY_ENDPOINT = `${API_BASE_URL}/factories/minimal`;
+
+    console.log(`🔍 Fetching from: ${FACTORY_ENDPOINT}`); // Debug Log
+
+    fetch(FACTORY_ENDPOINT)
       .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+        if (!res.ok) {
+          // Log status and URL for easier debugging
+          console.error(`❌ Backend Error: ${res.status} at ${FACTORY_ENDPOINT}`);
+          throw new Error(`HTTP error! status: ${res.status}`)
+        }
         return res.json()
       })
       .then((data) => {
-        // SAFETY CHECK: Ensure data is an array before setting state
         const factoryArray = Array.isArray(data) ? data : []
-        console.log('Loaded factories:', factoryArray)
+        console.log('✅ Factories loaded:', factoryArray)
         
         setFactories(factoryArray)
-        
-        // Only auto-select if we have factories
         if (factoryArray.length > 0) {
           setSelectedFactory(factoryArray[0].id)
         } else {
@@ -53,8 +59,7 @@ export default function ScanPointsPage() {
         }
       })
       .catch((err: unknown) => {
-        console.error('Failed to load factories:', err)
-        // Ensure factories is always an empty array on error to prevent .map crash
+        console.error('⚠️ Network or Parsing Error:', err)
         setFactories([]) 
       })
   }, [])
@@ -83,95 +88,127 @@ export default function ScanPointsPage() {
   })
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50">
-      {/* HEADER */}
-      <div className="flex justify-between mb-6">
-        <h1 className="text-2xl font-bold">Scan Points</h1>
+    <div className="min-h-screen bg-slate-50 p-8 font-sans selection:bg-blue-100 selection:text-blue-900">
+      
+      {/* HEADER SECTION */}
+      <div className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Scan Points</h1>
+          <p className="text-slate-500 mt-1 font-medium">Manage and monitor location checkpoints</p>
+        </div>
+        
         <button
           onClick={() => {
             setEditingScanPoint(null)
             setIsFormOpen(true)
           }}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+          className="group relative inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] transition-all duration-300 hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600"
         >
-          Add Scan Point
+          <span>Add Scan Point</span>
+          <svg className="w-4 h-4 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
         </button>
       </div>
 
-      {/* FILTERS */}
-      <div className="flex flex-wrap gap-4 mb-6 items-center">
-        <div className="flex items-center gap-2">
-          <label className="font-medium text-gray-700">Factory:</label>
-          <select
-            value={selectedFactory}
-            onChange={e => setSelectedFactory(e.target.value)}
-            className="border p-2 rounded bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            disabled={factories.length === 0}
-          >
-            {/* SAFETY FIX: Use (factories || []) to prevent crash if state isn't an array */}
-            {(factories || []).map(f => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-            {factories.length === 0 && (
-              <option value="" disabled>No factories available</option>
-            )}
-          </select>
-        </div>
+      {/* FILTERS TOOLBAR */}
+      <div className="max-w-7xl mx-auto mb-8 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap gap-6 items-center">
+          
+          {/* Factory Select */}
+          <div className="flex flex-col gap-1.5 min-w-[200px]">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Factory Location</label>
+            <div className="relative">
+              <select
+                value={selectedFactory}
+                onChange={e => setSelectedFactory(e.target.value)}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-2.5 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-white hover:border-blue-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={factories.length === 0}
+              >
+                {(factories || []).map(f => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+                {factories.length === 0 && (
+                  <option value="" disabled>No factories available</option>
+                )}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <label className="font-medium text-gray-700">Status:</label>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-            className="border p-2 rounded bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="All">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
+          {/* Status Select */}
+          <div className="flex flex-col gap-1.5 min-w-[160px]">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status</label>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as StatusFilter)}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-2.5 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-white hover:border-blue-300 cursor-pointer"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <label className="font-medium text-gray-700">Risk Level:</label>
-          <select
-            value={priorityFilter}
-            onChange={e =>
-              setPriorityFilter(e.target.value as PriorityFilter)
-            }
-            className="border p-2 rounded bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="All">All Risk Levels</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </select>
+          {/* Risk Select */}
+          <div className="flex flex-col gap-1.5 min-w-[160px]">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Risk Level</label>
+            <div className="relative">
+              <select
+                value={priorityFilter}
+                onChange={e =>
+                  setPriorityFilter(e.target.value as PriorityFilter)
+                }
+                className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-2.5 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-white hover:border-blue-300 cursor-pointer"
+              >
+                <option value="All">All Levels</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* TABLE */}
-      <ScanPointsTable
-        scanPoints={visibleScanPoints}
-        onEdit={(sp: ScanPoint) => {
-          setEditingScanPoint(sp)
-          setIsFormOpen(true)
-        }}
-        onDisable={async (id: string) => {
-          try {
-            const updated = await updateScanPoint(id, { is_active: false })
-            setScanPoints(prev =>
-              prev.map(sp =>
-                sp.id === id ? { ...sp, ...updated } : sp
-              )
-            )
-          } catch (err: unknown) {
-            console.error('Failed to disable scan point:', err)
-          }
-        }}
-      />
+      {/* TABLE CONTAINER */}
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-shadow duration-300 hover:shadow-md">
+          <ScanPointsTable
+            scanPoints={visibleScanPoints}
+            onEdit={(sp: ScanPoint) => {
+              setEditingScanPoint(sp)
+              setIsFormOpen(true)
+            }}
+            onDisable={async (id: string) => {
+              try {
+                const updated = await updateScanPoint(id, { is_active: false })
+                setScanPoints(prev =>
+                  prev.map(sp =>
+                    sp.id === id ? { ...sp, ...updated } : sp
+                  )
+                )
+              } catch (err: unknown) {
+                console.error('Failed to disable scan point:', err)
+              }
+            }}
+          />
+        </div>
+      </div>
 
-      {/* FORM */}
+      {/* FORM MODAL */}
       {isFormOpen && (
         <ScanPointForm
           scanPoint={editingScanPoint}
