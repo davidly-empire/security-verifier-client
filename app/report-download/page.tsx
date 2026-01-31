@@ -12,12 +12,13 @@ import ReportSummaryCards from '@/app/components/reports/ReportSummaryCards';
 // IMPORT THE PDF COMPONENT (Hidden logic only)
 import PatrolReportPDF from '@/app/components/reports/PatrolReportPDF';
 
-// Import API types and helpers
+// Import from the NEW Server Actions file
+// NOTE: If you created app/actions/scan-actions.ts correctly, this error will disappear.
 import {
   ScanLog,
   getAllScanLogs,
   getScanLogsByFactory,
-} from '@/app/api/reports';
+} from '../actions/scan-actions';
 
 /* ---------------- TYPES ---------------- */
 
@@ -149,7 +150,7 @@ const EmbeddedReportTable = ({ logs, loading }: { logs: ScanLog[], loading: bool
               const isActive = sortConfig?.key === col.key
               return (
                 <th
-                  key={col.key}
+                  key={col.key as string}
                   onClick={() => handleSort(col.key)}
                   className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer select-none transition-colors ${
                     isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'
@@ -176,7 +177,7 @@ const EmbeddedReportTable = ({ logs, loading }: { logs: ScanLog[], loading: bool
           {currentRows.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50 transition-colors">
               {columns.map((col) => (
-                <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                <td key={col.key as string} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                   {renderCell(row, col.key)}
                 </td>
               ))}
@@ -287,7 +288,7 @@ export default function ReportDownloadPage() {
 
       const reportData: PatrolReportResponse = await response.json();
       
-      // Set data to state. This triggers the hidden component to generate PDF.
+      // Set data to state. This triggers hidden component to generate PDF.
       setPatrolReportData(reportData);
       
     } catch (err) {
@@ -452,7 +453,7 @@ export default function ReportDownloadPage() {
         {/* 
            HIDDEN INTEGRATION POINT:
            The component below is rendered with 'display: none'. 
-           It handles the PDF generation logic but does not show any UI on the screen.
+           It handles PDF generation logic but does not show any UI on the screen.
         */}
         {patrolReportData && (
            <div style={{ display: 'none' }} aria-hidden="true">

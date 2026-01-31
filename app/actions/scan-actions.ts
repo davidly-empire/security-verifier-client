@@ -3,9 +3,9 @@
 import { Pool } from 'pg';
 
 // 1. Setup Database Connection
+// Ensure your .env file has DATABASE_URL defined
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL, 
-  // Ensure your .env file has this variable set!
 });
 
 /**
