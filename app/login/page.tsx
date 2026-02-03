@@ -84,7 +84,7 @@ export default function LoginPage() {
       localStorage.setItem('role', data.role)
       localStorage.setItem('name', data.name)
 
-      router.push('/dashboard')
+      router.push('/report-download')
     } catch (err: any) {
       setError(err.message || 'Failed to fetch. Check backend connection.')
 

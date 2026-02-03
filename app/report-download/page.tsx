@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
 import { FileDown, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -346,12 +345,7 @@ export default function ReportDownloadPage() {
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-3">
-                <Link href="/" className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">
-                  Back to Dashboard
-                </Link>
-              </div>
+              {/* Actions section removed */}
             </div>
           </div>
         </div>
