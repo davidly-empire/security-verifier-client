@@ -1,199 +1,217 @@
-'use client'
+"use client";
 
-import React, { useMemo, useState } from 'react'
-import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react' // Added icons for sort indication
-import { ScanLog } from '@/app/api/reports'
+import React, { useMemo, useState } from "react";
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ROUND_TIMES, RoundTime } from "./roundtime"; // Import your round times
+
+// Interface for Scan Logs
+export interface ScanLog {
+  id: string | number;
+  scan_time: string;
+  factory_code: string;
+  guard_name: string;
+  qr_name: string;
+  round: number;
+  lat?: string;
+  lon?: string;
+  status: "SUCCESS" | "MISSED" | string;
+  [key: string]: any;
+}
 
 interface Column {
-  key: keyof ScanLog
-  label: string
+  key: keyof ScanLog;
+  label: string;
 }
 
 interface ReportTableProps {
-  logs: ScanLog[]
-  loading: boolean
+  logs: ScanLog[];
+  loading: boolean;
 }
 
 const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
-  
-  // CHANGED: Initial state now defaults to Scan Time Descending (Newest First)
   const [sortConfig, setSortConfig] = useState<{
-    key: keyof ScanLog
-    direction: 'asc' | 'desc'
+    key: keyof ScanLog;
+    direction: "asc" | "desc";
   }>({
-    key: 'scan_time',
-    direction: 'desc'
-  })
+    key: "scan_time",
+    direction: "desc",
+  });
 
-  const [currentPage, setCurrentPage] = useState(1)
-  const rowsPerPage = 10
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
 
-  /* ================= COLUMNS (DB ONLY) ================= */
-
+  // Columns including lat/lon
   const columns: Column[] = [
-    { key: 'scan_time', label: 'Scan Time' },
-    { key: 'factory_code', label: 'Factory' },
-    { key: 'guard_name', label: 'Guard' },
-    { key: 'qr_name', label: 'Scan Point' },
-    { key: 'status', label: 'Status' },
-  ]
-
-  /* ================= SORTING ================= */
+    { key: "scan_time", label: "Scan Time" },
+    { key: "factory_code", label: "Factory" },
+    { key: "guard_name", label: "Guard" },
+    { key: "qr_name", label: "Scan Point" },
+    { key: "lat", label: "Latitude" },
+    { key: "lon", label: "Longitude" },
+    { key: "status", label: "Status" },
+  ];
 
   const handleSort = (key: keyof ScanLog) => {
-    let direction: 'asc' | 'desc' = 'asc'
-    
-    // If clicking the same key, toggle direction
+    let direction: "asc" | "desc" = "asc";
     if (sortConfig?.key === key) {
-      if (sortConfig.direction === 'asc') {
-        direction = 'desc'
-      } else {
-        direction = 'asc'
-      }
+      direction = sortConfig.direction === "asc" ? "desc" : "asc";
     } else {
-      // If clicking a new key, default to Descending (Newest first) usually preferred
-      direction = 'desc' 
+      direction = "desc";
     }
-    
-    setSortConfig({ key, direction })
-  }
+    setSortConfig({ key, direction });
+  };
+
+  // Filter out Round 35 before any processing
+  const validLogs = logs.filter((log) => log.round !== 35);
 
   const sortedData = useMemo(() => {
-    if (!sortConfig) return logs
+    if (!sortConfig) return validLogs;
 
-    return [...logs].sort((a, b) => {
-      const aValue = a[sortConfig.key]
-      const bValue = b[sortConfig.key]
+    return [...validLogs].sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
 
-      // Handle Date Sorting specifically
-      if (sortConfig.key === 'scan_time') {
-        const dateA = new Date(aValue as string).getTime()
-        const dateB = new Date(bValue as string).getTime()
-        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA
+      if (sortConfig.key === "scan_time") {
+        const dateA = new Date(aValue as string).getTime();
+        const dateB = new Date(bValue as string).getTime();
+        return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
       }
 
-      // Handle String Sorting
-      if (!aValue || !bValue) return 0
+      if (!aValue || !bValue) return 0;
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [validLogs, sortConfig]);
 
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
-      return 0
-    })
-  }, [logs, sortConfig])
+  // Group logs by round
+  const logsByRound = useMemo(() => {
+    const grouped: Record<number, ScanLog[]> = {};
+    sortedData.forEach((log) => {
+      const r = log.round || 1;
+      if (!grouped[r]) grouped[r] = [];
+      grouped[r].push(log);
+    });
+    return grouped;
+  }, [sortedData]);
 
-  /* ================= PAGINATION ================= */
-
-  const indexOfLastRow = currentPage * rowsPerPage
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage
-  const currentRows = sortedData.slice(indexOfFirstRow, indexOfLastRow)
-  const totalPages = Math.ceil(sortedData.length / rowsPerPage)
-
-  /* ================= CELL RENDER ================= */
-
+  // Render cell values
   const renderCell = (row: ScanLog, key: keyof ScanLog) => {
-    const value = row[key]
+    const value = row[key];
 
-    if (key === 'scan_time' && value) {
-      return new Date(value as string).toLocaleString()
-    }
+    if (key === "scan_time" && value) return new Date(value as string).toLocaleString();
 
-    if (key === 'status') {
+    if (key === "status") {
       const color =
-        value === 'SUCCESS'
-          ? 'bg-green-100 text-green-800'
-          : value === 'MISSED'
-          ? 'bg-red-100 text-red-800'
-          : 'bg-gray-100 text-gray-800'
-
-      return (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
-          {value ?? 'UNKNOWN'}
-        </span>
-      )
+        value === "SUCCESS"
+          ? "bg-green-100 text-green-800"
+          : value === "MISSED"
+          ? "bg-red-100 text-red-800"
+          : "bg-gray-100 text-gray-800";
+      return <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>{value ?? "UNKNOWN"}</span>;
     }
 
-    return value ?? '—'
-  }
+    return value ?? "—";
+  };
 
-  /* ================= UI ================= */
-
-  if (loading) {
-    return <div className="text-center py-6 text-slate-500">Loading scan logs...</div>
-  }
-
-  if (!logs.length) {
-    return <div className="text-center py-6 text-slate-500">No scan records found</div>
-  }
+  if (loading) return <div className="text-center py-6 text-slate-500">Loading scan logs...</div>;
+  if (!validLogs.length) return <div className="text-center py-6 text-slate-500">No scan records found</div>;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
-      <table className="min-w-full divide-y divide-slate-200 bg-white">
-        <thead className="bg-slate-50">
-          <tr>
-            {columns.map((col) => {
-              const isActive = sortConfig?.key === col.key
-              return (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer select-none transition-colors
-                    ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'}
-                  `}
-                >
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    {/* Sort Icons */}
-                    {isActive ? (
-                      sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                    ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
-                    )}
-                  </div>
-                </th>
-              )
-            })}
-          </tr>
-        </thead>
+    <div className="space-y-8">
+      {Object.keys(logsByRound)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((roundKey) => {
+          const roundNumber = Number(roundKey);
+          const roundLogs = logsByRound[roundNumber];
+          const totalPages = Math.ceil(roundLogs.length / rowsPerPage);
+          const indexOfLastRow = currentPage * rowsPerPage;
+          const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+          const currentRows = roundLogs.slice(indexOfFirstRow, indexOfLastRow);
 
-        <tbody className="divide-y divide-slate-200">
-          {currentRows.map((row) => (
-            <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-              {columns.map((col) => (
-                <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                  {renderCell(row, col.key)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          // Get start & end time from ROUND_TIMES
+          const roundTime: RoundTime | undefined = ROUND_TIMES[roundNumber];
+          const startTime = roundTime?.start ?? "-";
+          const endTime = roundTime?.end ?? "-";
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex justify-between items-center px-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 border rounded shadow-sm text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Previous
-          </button>
+          return (
+            <div key={roundKey} className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm p-4">
+              <h2 className="text-lg font-semibold mb-2">
+                Round {roundNumber} — Start: {startTime}, End: {endTime}
+              </h2>
+              <table className="min-w-full divide-y divide-slate-200 bg-white">
+                <thead className="bg-slate-50">
+                  <tr>
+                    {columns.map((col) => {
+                      const isActive = sortConfig?.key === col.key;
+                      return (
+                        <th
+                          key={String(col.key)}
+                          onClick={() => handleSort(col.key)}
+                          className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer select-none transition-colors
+                            ${isActive ? "bg-blue-100 text-blue-700" : "text-slate-500 hover:bg-slate-100"}`}
+                        >
+                          <div className="flex items-center gap-1">
+                            {col.label}
+                            {isActive ? (
+                              sortConfig.direction === "asc" ? (
+                                <ArrowUp className="w-3 h-3" />
+                              ) : (
+                                <ArrowDown className="w-3 h-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-30" />
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {/* FIX: Added 'index' to map args and created a composite key */}
+                  {currentRows.map((row, index) => (
+                    <tr 
+                      key={row.id ? `${row.id}-${index}` : `fallback-${index}`} 
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      {columns.map((col) => (
+                        <td key={String(col.key)} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                          {renderCell(row, col.key)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-          <span className="text-sm font-medium text-slate-600">
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 border rounded shadow-sm text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
+              {/* Pagination per round */}
+              {totalPages > 1 && (
+                <div className="mt-2 flex justify-between items-center px-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-1 border rounded shadow-sm text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm font-medium text-slate-600">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-1 border rounded shadow-sm text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
     </div>
-  )
-}
+  );
+};
 
-export default ReportTable
+export default ReportTable;

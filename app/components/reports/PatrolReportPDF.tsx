@@ -1,74 +1,75 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ROUND_TIMES, RoundTime } from "./roundtime"; 
+import axios from 'axios';
 
 // --- INTERFACES ---
-
-interface PatrolLocation {
-  employee_name?: string;
-  employee_id?: string | number; 
-  patrol_time?: string;
-  location?: string;
-  latitude?: string;
-  longitude?: string;
-  status?: string; 
-  start_time?: string;
-  end_time?: string;
+export interface ScanLog {
+  id: string | number;
+  scan_time: string;
+  factory_code: string;
+  guard_name: string;
+  qr_name: string;
+  round: number;
+  lat?: string;
+  lon?: string;
+  status: "SUCCESS" | "MISSED" | string;
+  [key: string]: any;
 }
-
-interface PatrolRound {
-  s_no: number;
-  date: string;
-  start_time: string;
-  end_time: string;
-  time_range_display: string;
-  status: string;
-  table?: PatrolLocation[];
-}
-
-interface PatrolReportResponse {
-  factory_name: string;
-  factory_address: string;
-  report_date: string;
-  generated_by: string;
-  generated_at: string;
-  rounds: PatrolRound[];
-}
-
-// --- COMPONENT ---
 
 interface PatrolReportPDFProps {
-  reportData: PatrolReportResponse;
+  logs: ScanLog[];
   factoryCode: string;
+  factoryName: string;
+  factoryAddress?: string; // optional, can be fetched
+  reportDate: string;
+  generatedBy: string;
 }
 
-const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({ reportData, factoryCode }) => {
+const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
+  logs,
+  factoryCode,
+  factoryName,
+  factoryAddress: initialAddress,
+  reportDate,
+  generatedBy
+}) => {
+  const [factoryAddress, setFactoryAddress] = useState<string>(initialAddress || '');
+
+  // Fetch factory address if not provided
+  useEffect(() => {
+    if (!factoryAddress && factoryCode) {
+      const fetchAddress = async () => {
+        try {
+          const res = await axios.get(`/api/factories/${factoryCode}`);
+          const address = res.data.address || 'N/A';
+          setFactoryAddress(address);
+        } catch (err) {
+          console.error("Failed to fetch factory address", err);
+          setFactoryAddress('N/A');
+        }
+      };
+      fetchAddress();
+    }
+  }, [factoryCode, factoryAddress]);
 
   useEffect(() => {
-    if (!reportData) return;
+    if (!logs || logs.length === 0) return;
     handleGeneratePDF();
-  }, [reportData]);
+  }, [logs, factoryAddress]);
 
-  /**
-   * Helper: Format Date (YYYY-MM-DD)
-   */
   const getFormattedDate = (dateString: string): string => {
     if (!dateString) return "N/A";
     try {
       const d = new Date(dateString);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     } catch {
       return dateString;
     }
   };
 
-  /**
-   * Helper: Format Time (HH:MM AM/PM)
-   */
   const formatTime = (t?: string): string => {
     if (!t) return "N/A";
     try {
@@ -82,194 +83,141 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({ reportData, factoryCo
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    const borderMargin = 12; 
+    const leftMargin = 16;  
 
-    // --- UI THEME COLORS ---
-    const THEME_GREEN: [number, number, number] = [6, 123, 69];  
-    // THEME_LIGHT is no longer used for background but kept for reference if needed later
-    const THEME_LIGHT: [number, number, number] = [223, 240, 216]; 
-    const THEME_RED: [number, number, number] = [200, 50, 50]; 
-    const THEME_BLUE: [number, number, number] = [0, 0, 139];     
+    const drawPageBorder = () => {
+      doc.setDrawColor(50, 50, 50);
+      doc.setLineWidth(0.5);
+      doc.rect(borderMargin, borderMargin, pageWidth - (borderMargin * 2), pageHeight - (borderMargin * 2), 'S');
+    };
 
-    // --- 1. HEADER SECTION (WHITE BACKGROUND) ---
-    
-    doc.setFillColor(255, 255, 255); 
-    doc.rect(0, 0, pageWidth, 45, 'F'); 
-    
-    // Title: "Security Patrol Report" in BLACK
-    doc.setTextColor(0, 0, 0); 
+    const THEME_GREEN: [number, number, number] = [6, 123, 69];
+    const THEME_RED: [number, number, number] = [200, 50, 50];
+    const THEME_BLUE: [number, number, number] = [0, 0, 139];
+
+    // Filter logs
+    const validLogs = logs.filter((log) => log.round !== 35);
+
+    const logsByRound: Record<number, ScanLog[]> = {};
+    validLogs.forEach((log) => {
+      const r = log.round || 1;
+      if (!logsByRound[r]) logsByRound[r] = [];
+      logsByRound[r].push(log);
+    });
+
+    const sortedRoundKeys = Object.keys(logsByRound).map(Number).sort((a, b) => a - b);
+
+    drawPageBorder();
+
+    // HEADER
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 48, 'F');
+    doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.text("Security Patrol Report", pageWidth / 2, 12, { align: "center" });
-
-    // Subtitle: Factory Name in RED
-    doc.setTextColor(...THEME_RED); 
+    doc.text("Security Patrol Report", pageWidth / 2, 20, { align: "center" });
+    doc.setTextColor(...THEME_RED);
     doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text(reportData.factory_name.toUpperCase(), pageWidth / 2, 20, { align: "center" });
-
-    // Address: Standard Dark Text
+    doc.text(factoryName.toUpperCase(), pageWidth / 2, 27, { align: "center" });
     doc.setTextColor(50, 50, 50);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(reportData.factory_address, pageWidth / 2, 26, { align: "center" });
+    doc.text(factoryAddress || "N/A", pageWidth / 2, 33, { align: "center" });
 
-    // --- META INFO SECTION (DARK BLUE TEXT) ---
-    const leftMargin = 14;
+    // META INFO
     const colLeftX = leftMargin;
     const colRightX = 105;
-    const headerInfoStartY = 34; 
+    const headerInfoStartY = 40;
     const lineHeight = 5.5;
-
-    const displayDate = new Date(reportData.report_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    const displayDate = getFormattedDate(reportDate);
     const generatedStr = formatTime(new Date().toISOString());
 
-    // Helper for drawing meta info
     const drawHeaderMeta = (label: string, value: string, yPos: number, xPos: number) => {
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...THEME_BLUE); 
+      doc.setTextColor(...THEME_BLUE);
       doc.text(`${label}:`, xPos, yPos);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(...THEME_BLUE); 
+      doc.setTextColor(...THEME_BLUE);
       doc.text(value, xPos + 25, yPos);
     };
 
-    // --- ROW 1 ---
-    drawHeaderMeta("Factory", reportData.factory_name, headerInfoStartY, colLeftX);
+    drawHeaderMeta("Factory", factoryName, headerInfoStartY, colLeftX);
     drawHeaderMeta("Date", displayDate, headerInfoStartY, colRightX);
-
-    // --- ROW 2 ---
-    drawHeaderMeta("Generated By", reportData.generated_by, headerInfoStartY + lineHeight, colLeftX);
+    drawHeaderMeta("Generated By", generatedBy, headerInfoStartY + lineHeight, colLeftX);
     drawHeaderMeta("Generated At", generatedStr, headerInfoStartY + lineHeight, colRightX);
 
-    // --- SEPARATOR LINE ---
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.5);
-    doc.line(leftMargin, 50, pageWidth - leftMargin, 50);
+    doc.line(leftMargin, 52, pageWidth - leftMargin, 52);
 
-    let finalY = 55; 
+    let finalY = 57;
 
-    // --- 3. ROUNDS LOOP ---
-    const rounds = Array.isArray(reportData.rounds) ? reportData.rounds : [];
-    const sortedRounds = [...rounds].sort((a, b) => a.s_no - b.s_no);
-
-    sortedRounds.forEach((round) => {
-      if (finalY > 240) {
+    // ROUNDS LOOP
+    sortedRoundKeys.forEach((roundNumber) => {
+      if (finalY > 230) { 
         doc.addPage();
-        finalY = 20;
+        drawPageBorder();
+        finalY = borderMargin + 10;
       }
 
-      const timeRangeText = round.time_range_display || "N/A";
+      const roundLogs = logsByRound[roundNumber];
+      const roundTime: RoundTime | undefined = ROUND_TIMES[roundNumber];
+      const startTime = roundTime?.start ?? "-";
+      const endTime = roundTime?.end ?? "-";
 
-      // --- UPDATED: REMOVED GREEN BACKGROUND AND STATUS TEXT ---
-      // Just draw the Title text directly on the white page
-      doc.setTextColor(0, 0, 0); // Black text
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
-      doc.text(`Round ${round.s_no}  |  ${timeRangeText}`, leftMargin, finalY + 7);
+      doc.text(`Round ${roundNumber}  |  Start: ${startTime}, End: ${endTime}`, leftMargin, finalY + 7);
 
-      // Draw a separator line under the round title instead of a background box
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.5);
       doc.line(leftMargin, finalY + 10, pageWidth - leftMargin, finalY + 10);
+      finalY += 16;
 
-      finalY += 16; // Move down slightly more to accommodate the line
+      const tableBody = roundLogs.length > 0
+        ? roundLogs.map((log) => [
+            formatTime(log.scan_time),
+            log.factory_code || "N/A",
+            log.guard_name || "N/A",
+            log.qr_name || "N/A",
+            log.lat || "0.0",
+            log.lon || "0.0",
+            log.status || "UNKNOWN"
+          ])
+        : [["-", "-", "-", "-", "-", "-", "NO DATA"]];
 
-      // --- 4. PREPARE TABLE DATA ---
-      let tableBody: any[] = [];
-
-      if (round.table && round.table.length > 0) {
-        tableBody = round.table.map((scan) => {
-          const isSuccessRow = scan.status !== "MISSED"; 
-          
-          const time = formatTime(scan.patrol_time);
-          const lat = scan.latitude || "0.0"; 
-          const lon = scan.longitude || "0.0"; 
-          const displayDate = getFormattedDate(round.start_time);
-
-          return [
-            scan.employee_name || "N/A",
-            scan.location || "N/A",
-            time,
-            lat,
-            lon,
-            displayDate,      
-            factoryCode,       
-            isSuccessRow ? "SUCCESS" : "MISSED"
-          ];
-        });
-      } else {
-        // NO DATA LOGIC
-        const displayDate = getFormattedDate(round.start_time);
-        tableBody.push([
-          "-",
-          "-",
-          "-",
-          "-",
-          "-",
-          displayDate,
-          factoryCode,
-          "MISSED"
-        ]);
-      }
-
-      // --- 5. DRAW TABLE ---
       autoTable(doc, {
         startY: finalY,
-        head: [['Guard Name', 'Location', 'Time', 'Latitude', 'Longitude', 'Date', 'Factory Code', 'Status']],
+        head: [['Time', 'Factory', 'Guard Name', 'Scan Point', 'Latitude', 'Longitude', 'Status']],
         body: tableBody,
-        theme: 'plain', 
-        headStyles: { 
-          fillColor: THEME_BLUE, 
-          textColor: 255,
-          fontStyle: 'bold',
-          fontSize: 9,
-          halign: 'left'
-        },
-        styles: { 
-          fontSize: 8,
-          cellPadding: 3,
-          lineColor: [230, 230, 230], 
-          lineWidth: { top: 0, right: 0, bottom: 0.2, left: 0 } 
-        },
-        alternateRowStyles: {
-          fillColor: [250, 253, 250] 
-        },
+        theme: 'plain',
+        headStyles: { fillColor: THEME_BLUE, textColor: 255, fontStyle: 'bold', fontSize: 9, halign: 'left' },
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [230,230,230], lineWidth: { top:0, right:0, bottom:0.2, left:0 } },
+        alternateRowStyles: { fillColor: [250,253,250] },
         didParseCell: (data) => {
-          if (data.section === 'body') {
-            if (data.column.index === 7) {
-              const cellContent = String(data.cell.raw);
-
-              if (cellContent.includes("SUCCESS")) {
-                data.cell.styles.textColor = THEME_GREEN;
-                data.cell.styles.fontStyle = 'bold';
-              } else if (cellContent.includes("MISSED")) {
-                data.cell.styles.textColor = THEME_RED; 
-                data.cell.styles.fontStyle = 'bold';
-              }
-            }
+          if (data.section === 'body' && data.column.index === 6) {
+            const cellContent = String(data.cell.raw);
+            if (cellContent.includes("SUCCESS")) { data.cell.styles.textColor = THEME_GREEN; data.cell.styles.fontStyle='bold'; }
+            else if (cellContent.includes("MISSED")) { data.cell.styles.textColor = THEME_RED; data.cell.styles.fontStyle='bold'; }
           }
-        },
+        }
       });
 
       finalY = (doc as any).lastAutoTable.finalY + 15;
     });
 
-    // --- 6. FOOTER ---
+    // FOOTER
     const pageCount = doc.internal.pages.length - 1;
     for(let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(150);
-      doc.text(
-        `Page ${i} of ${pageCount} - Generated by Security Verifier`, 
-        pageWidth / 2, 
-        pageHeight - 10, 
-        { align: "center" }
-      );
+      doc.text(`Page ${i} of ${pageCount} - Generated by Security Verifier`, pageWidth / 2, pageHeight - 10, { align: "center" });
     }
 
-    // --- 7. SAVE FILE ---
-    const fileName = `Patrol_Report_${factoryCode}_${reportData.report_date}.pdf`;
+    const fileName = `Patrol_Report_${factoryCode}_${reportDate}.pdf`;
     doc.save(fileName);
   };
 
