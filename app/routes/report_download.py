@@ -1,37 +1,62 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
+from app.database import get_db
 from datetime import datetime
+from app.utils.round_slots import generate_round_slots
 
-from app.services.patrol_report_service import generate_patrol_report
+router = APIRouter(prefix="/report", tags=["Report"])
 
-router = APIRouter(
-    prefix="/api/report",
-    tags=["Report Download"]
-)
-
-@router.get(
-    "/patrol",
-    summary="Download Patrol Report"
-)
-async def download_patrol_report(
-    factory_code: str = Query(..., example="F001"),
-    date: str = Query(..., example="2026-01-22")
+@router.get("/download")
+def download_report(
+    factory_code: str = Query(...),
+    report_date: str = Query(...),
+    db=Depends(get_db),
 ):
-    report = await generate_patrol_report(
-        factory_code=factory_code,
-        report_date=date
-    )
+    try:
+        round_slots = generate_round_slots(report_date)
 
-    if not report:
-        raise HTTPException(
-            status_code=404,
-            detail="No patrol data found for given date"
+        qr_codes = (
+            db.table("qr")
+            .select("qr_id, qr_name")
+            .eq("factory_code", factory_code)
+            .execute()
+            .data or []
         )
 
-    return {
-        "factory_name": report["factory_name"],
-        "factory_address": report["factory_address"],
-        "report_date": date,
-        "generated_by": "System",
-        "generated_at": datetime.utcnow(),
-        "rounds": report["rounds"]
-    }
+        scans = (
+            db.table("scanning_details")
+            .select("*")
+            .eq("factory_code", factory_code)
+            .gte("scan_time", f"{report_date}T00:00:00+05:30")
+            .lte("scan_time", f"{report_date}T23:59:59+05:30")
+            .execute()
+            .data or []
+        )
+
+        report = []
+
+        for qr in qr_codes:
+            for round_no, slot in round_slots:
+                scan = next(
+                    (
+                        s for s in scans
+                        if s.get("qr_id") == qr.get("qr_id")
+                        and s.get("round_slot") == slot.isoformat()
+                    ),
+                    None
+                )
+
+                report.append({
+                    "qr_name": qr.get("qr_name"),
+                    "round": round_no,
+                    "scan_time": scan.get("scan_time") if scan else None,
+                    "lat": scan.get("lat") if scan else None,
+                    "log": scan.get("log") if scan else None,
+                    "guard_name": scan.get("guard_name") if scan else None,
+                    "status": "SUCCESS" if scan else "FAILED"
+                })
+
+        return report  # ✅ ARRAY ONLY
+
+    except Exception as e:
+        print("❌ REPORT ERROR:", str(e))
+        return {"error": str(e)}

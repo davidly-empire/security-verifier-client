@@ -1,161 +1,160 @@
 import os
-from typing import Generator, Optional
 from supabase import create_client, Client
+from typing import Optional
 
-# -----------------------------
-# Load Supabase credentials from environment
-# -----------------------------
+# =========================================================
+# Supabase Client Initialization
+# =========================================================
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Add this safety check
 if not SUPABASE_URL:
-    print("WARNING: SUPABASE_URL is not set!")
+    raise RuntimeError("❌ SUPABASE_URL is not set in environment")
 if not SUPABASE_KEY:
-    print("WARNING: SUPABASE_KEY is not set!")
+    raise RuntimeError("❌ SUPABASE_KEY is not set in environment")
 
-# Only initialize client if we have creds
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-else:
-    # If no creds, create a dummy client to prevent crash
-    supabase = None 
+# Create the client immediately so it can be imported as 'supabase'
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# =========================================================
-# ✅ FIX: Added to solve "ImportError: cannot import name 'get_db'"
-# =========================================================
-def get_db():
+def get_supabase_client() -> Client:
     """
-    Dummy dependency for compatibility with SQLAlchemy-style route imports.
-    Since this project uses Supabase (a REST client), we don't manage database 
-    sessions via dependency injection like SQLAlchemy. 
-    
-    If your routes are asking for 'db' via Depends(get_db), this function 
-    returns None. You should likely update your routes to remove 'Depends(get_db)' 
-    and use the helper functions below directly.
+    Returns the initialized Supabase client.
     """
-    return None
+    return supabase
+
+
+# =========================================================
+# FastAPI Dependency
 # =========================================================
 
-# -----------------------------
-# Helper functions
-# -----------------------------
+def get_db() -> Client:
+    """
+    FastAPI dependency.
+    Returns Supabase client (NOT SQLAlchemy session)
+    """
+    return get_supabase_client()
+
+
+# =========================================================
+# Generic Supabase Helpers
+# =========================================================
 
 def get_table(table_name: str):
-    """
-    Return a Supabase table reference
-    """
-    if not supabase:
-        raise RuntimeError("Supabase client not initialized. Check .env file.")
-    return supabase.table(table_name)
+    return get_supabase_client().table(table_name)
+
 
 def insert_row(table_name: str, data: dict):
-    """
-    Insert a row into a table
-    """
-    if not supabase:
-        raise RuntimeError("Database connection not available.")
-    
     try:
-        response = supabase.table(table_name).insert(data).execute()
-        
-        # FIX: Check for errors correctly for Supabase v2.x
-        if hasattr(response, 'data') and response.data:
-            return response.data
-        else:
-            # Log error for debugging
-            print(f"Supabase Insert Error: {response}")
-            return None
+        response = get_supabase_client().table(table_name).insert(data).execute()
+        return response.data if hasattr(response, "data") else None
     except Exception as e:
-        print(f"Database Insert Exception: {e}")
-        raise RuntimeError(f"Failed to insert data: {e}")
+        print(f"❌ Insert Error [{table_name}]:", e)
+        return None
 
-def select_rows(table_name: str, filters: dict = None):
-    """
-    Select rows with optional filters
-    """
-    if not supabase:
-        raise RuntimeError("Database connection not available.")
-        
-    query = supabase.table(table_name).select("*")
+
+def select_rows(table_name: str, filters: dict | None = None):
+    query = get_supabase_client().table(table_name).select("*")
+
     if filters:
         for key, value in filters.items():
             query = query.eq(key, value)
-    
+
     try:
         response = query.execute()
-        return response.data if hasattr(response, 'data') else []
+        return response.data if hasattr(response, "data") else []
     except Exception as e:
-        print(f"Database Select Exception: {e}")
+        print(f"❌ Select Error [{table_name}]:", e)
         return []
 
-def update_row(table_name: str, row_id: str, data: dict, id_column: str = "id"):
-    """
-    Update a row by its ID
-    """
-    if not supabase:
-        raise RuntimeError("Database connection not available.")
-        
+
+def update_row(table_name: str, row_id: int, data: dict, id_column: str = "id"):
     try:
-        response = supabase.table(table_name).update(data).eq(id_column, row_id).execute()
-        return response.data if hasattr(response, 'data') else None
+        response = (
+            get_supabase_client()
+            .table(table_name)
+            .update(data)
+            .eq(id_column, row_id)
+            .execute()
+        )
+        return response.data if hasattr(response, "data") else None
     except Exception as e:
-        print(f"Database Update Exception: {e}")
+        print(f"❌ Update Error [{table_name}]:", e)
         return None
 
-def delete_row(table_name: str, row_id: str, id_column: str = "id"):
-    """
-    Delete a row by its ID
-    """
-    if not supabase:
-        raise RuntimeError("Database connection not available.")
-        
+
+def delete_row(table_name: str, row_id: int, id_column: str = "id"):
     try:
-        response = supabase.table(table_name).delete().eq(id_column, row_id).execute()
-        return response.data if hasattr(response, 'data') else None
+        response = (
+            get_supabase_client()
+            .table(table_name)
+            .delete()
+            .eq(id_column, row_id)
+            .execute()
+        )
+        return response.data if hasattr(response, "data") else None
     except Exception as e:
-        print(f"Database Delete Exception: {e}")
+        print(f"❌ Delete Error [{table_name}]:", e)
         return None
 
 
 # =========================================================
-# ✅ ADDED: Scanning Details specific helpers (NEW CODE ONLY)
+# Scanning Details Helpers
 # =========================================================
 
 SCANNING_TABLE = "scanning_details"
 
+
 def create_scan_log(data: dict):
-    """
-    Insert scan data into scanning_details table
-    """
+    """Insert scan data into scanning_details table"""
     return insert_row(SCANNING_TABLE, data)
 
+
 def get_all_scan_logs():
-    """
-    Fetch all scan logs
-    """
-    return select_rows(SCANNING_TABLE)
+    """Fetch all scan logs"""
+    try:
+        response = (
+            get_supabase_client()
+            .table(SCANNING_TABLE)
+            .select("*")
+            .execute()
+        )
+        return response.data if hasattr(response, "data") else []
+    except Exception as e:
+        print(f"❌ Select All Scan Logs Error:", e)
+        return []
+
 
 def get_scan_logs_by_factory(factory_code: str):
-    """
-    Fetch scan logs by factory_code
-    """
-    return select_rows(
-        SCANNING_TABLE,
-        filters={"factory_code": factory_code}
-    )
+    """Fetch scan logs filtered by factory_code"""
+    return select_rows(SCANNING_TABLE, {"factory_code": factory_code})
+
 
 def get_scan_logs_by_guard(guard_name: str):
+    """Fetch scan logs filtered by guard name"""
+    return select_rows(SCANNING_TABLE, {"guard_name": guard_name})
+
+
+def get_scan_logs_by_factory_and_date(factory_code: str, report_date: str):
     """
-    Fetch scan logs by guard name
+    Fetch scan logs filtered by factory_code and date (YYYY-MM-DD)
     """
-    return select_rows(
-        SCANNING_TABLE,
-        filters={"guard_name": guard_name}
-    )
+    try:
+        response = (
+            get_supabase_client()
+            .table(SCANNING_TABLE)
+            .select("*")
+            .eq("factory_code", factory_code)
+            .gte("scan_time", f"{report_date}T00:00:00")
+            .lte("scan_time", f"{report_date}T23:59:59")
+            .execute()
+        )
+        return response.data if hasattr(response, "data") else []
+    except Exception as e:
+        print("❌ Scan Logs by Factory/Date Error:", e)
+        return []
+
 
 def delete_scan_log(scan_id: int):
-    """
-    Delete scan log by ID
-    """
+    """Delete scan log by ID"""
     return delete_row(SCANNING_TABLE, scan_id)
