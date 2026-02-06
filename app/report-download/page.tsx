@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 import { getPatrolReport, PatrolReportItem } from "../api/report";
 import { getFactories } from "../api/factories.api";
@@ -9,26 +9,20 @@ import PatrolReportPDF from "../components/reports/PatrolReportPDF";
 import ReportTable from "../components/reports/ReportTable";
 
 
-// ===============================
-// Types
-// ===============================
+// ================= TYPES =================
 type Factory = {
   factory_code: string;
   factory_name: string;
-  factory_address?: string;
+  factory_address: string | null; // IMPORTANT
 };
 
 
-// ===============================
-// Component
-// ===============================
+
+// ================= COMPONENT =================
 export default function ReportDownloadPage() {
 
-  // -------------------------------
-  // State
-  // -------------------------------
+  // ---------------- STATE ----------------
   const [factories, setFactories] = useState<Factory[]>([]);
-
   const [factoryCode, setFactoryCode] = useState("");
 
   const [reportDate, setReportDate] = useState(
@@ -38,60 +32,64 @@ export default function ReportDownloadPage() {
   const [report, setReport] = useState<PatrolReportItem[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
-  const [showPDF, setShowPDF] = useState(false);
+  const [pdfTrigger, setPdfTrigger] = useState<number | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
 
 
-  // ===============================
-  // Load Factories
-  // ===============================
-  useEffect(() => {
+// ================= LOAD FACTORIES =================
+useEffect(() => {
 
-    const loadFactories = async () => {
+  const loadFactories = async () => {
+    try {
 
-      try {
+      const res = await getFactories();
 
-        const res = await getFactories();
+      if (res?.data?.length) {
 
-        if (res?.data?.length) {
+        console.log("🏭 FACTORIES FROM API:", res.data); // DEBUG
 
-          setFactories(res.data);
-
-          setFactoryCode(res.data[0].factory_code);
-        }
-
-      } catch (err) {
-
-        console.error("Factory load error:", err);
-
+        setFactories(res.data);
+        setFactoryCode(res.data[0].factory_code);
       }
-    };
 
-    loadFactories();
+    } catch (err) {
+      console.error("Factory load error:", err);
+    }
+  };
 
-  }, []);
+  loadFactories();
+
+}, []);
 
 
-  // ===============================
-  // Fetch Report
-  // ===============================
+// ================= DEBUG FACTORIES =================
+useEffect(() => {
+  console.log("📍 FACTORIES STATE:", factories);
+}, [factories]);
+
+
+
+  // ================= FETCH REPORT =================
   const fetchReport = async () => {
 
     if (!factoryCode) return;
 
+    setPdfTrigger(null);
+    setPdfLoading(false);
+
     setLoading(true);
     setError(null);
-    setShowPDF(false);
 
     try {
 
       const data = await getPatrolReport(factoryCode, reportDate);
 
-      console.log("REPORT DATA:", data); // debug
+      console.log("✅ REPORT DATA:", data);
 
       setReport(data);
 
@@ -109,9 +107,7 @@ export default function ReportDownloadPage() {
   };
 
 
-  // ===============================
-  // Print
-  // ===============================
+  // ================= PRINT =================
   const printReport = () => {
 
     if (!printRef.current) return;
@@ -134,10 +130,9 @@ export default function ReportDownloadPage() {
           <title>Patrol Report</title>
           <style>
             body { font-family: Arial; padding: 20px; }
-            h2 { text-align: center; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ccc; padding: 8px; }
-            th { background: #eee; }
+            table { width:100%; border-collapse: collapse; }
+            th,td { border:1px solid #ccc; padding:8px; }
+            th { background:#eee; }
           </style>
         </head>
         <body>
@@ -152,152 +147,210 @@ export default function ReportDownloadPage() {
   };
 
 
-  // ===============================
-  // Prepare PDF
-  // ===============================
-  const preparePDF = () => {
+  // ================= PDF =================
+  const handleDownloadPdf = () => {
 
     if (!report.length) {
-      alert("Fetch report first");
+      alert("Please fetch report first");
       return;
     }
 
-    setShowPDF(true);
+    console.log("📍 FACTORY ADDRESS:", factoryAddress); // DEBUG
+
+    setPdfLoading(true);
+    setPdfTrigger(Date.now());
+
+    setTimeout(() => {
+      setPdfLoading(false);
+    }, 800);
   };
 
 
-  // ===============================
-  // Factory Info
-  // ===============================
+  // ================= FACTORY INFO =================
   const currentFactory = factories.find(
-    (f) => f.factory_code === factoryCode
-  );
+  (f) => f.factory_code === factoryCode
+);
 
-  const factoryName = currentFactory?.factory_name || factoryCode;
+const factoryName =
+  currentFactory?.factory_name || factoryCode;
 
-  const factoryAddress = currentFactory?.factory_address || "N/A";
+const factoryAddress =
+  currentFactory?.factory_address?.trim()
+    ? currentFactory.factory_address
+    : "N/A";
 
 
-  // ===============================
-  // UI
-  // ===============================
+
+
+  // ================= CLEAN DATA =================
+  const cleanLogs = useMemo(() => {
+
+    return report.map((item) => ({
+
+      ...item,
+
+      lat: item.lat ?? undefined,
+      lon: item.lon ?? undefined,
+      guard_name: item.guard_name ?? undefined,
+
+    }));
+
+  }, [report]);
+
+
+  // ================= UI =================
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-slate-50 p-6">
 
-      {/* Title */}
-      <h1 className="text-2xl font-bold mb-4">
-        Patrol Report
-      </h1>
+      <div className="max-w-7xl mx-auto space-y-6">
 
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-4 items-center">
+        {/* Title */}
+        <h1 className="text-3xl font-bold text-slate-900">
+          Patrol Report
+        </h1>
 
 
-        {/* Factory */}
-        <select
-          className="border p-2 rounded"
-          value={factoryCode}
-          onChange={(e) => setFactoryCode(e.target.value)}
-        >
+        {/* Controls */}
+        <div className="bg-white p-6 rounded shadow border">
 
-          {factories.map((f) => (
-            <option
-              key={f.factory_code}
-              value={f.factory_code}
-            >
-              {f.factory_name}
-            </option>
-          ))}
-
-        </select>
+          <div className="flex flex-wrap gap-4 items-end">
 
 
-        {/* Date */}
-        <input
-          type="date"
-          className="border p-2 rounded"
-          value={reportDate}
-          onChange={(e) => setReportDate(e.target.value)}
-        />
+            {/* Factory */}
+            <div className="flex-1 min-w-[200px]">
+
+              <label className="block text-sm mb-1">
+                Factory
+              </label>
+
+              <select
+                className="w-full border p-2 rounded"
+                value={factoryCode}
+                onChange={(e) => setFactoryCode(e.target.value)}
+              >
+                {factories.map((f) => (
+                  <option
+                    key={f.factory_code}
+                    value={f.factory_code}
+                  >
+                    {f.factory_name}
+                  </option>
+                ))}
+              </select>
+
+            </div>
 
 
-        {/* Fetch */}
-        <button
-          onClick={fetchReport}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Fetch
-        </button>
+            {/* Date */}
+            <div className="flex-1 min-w-[200px]">
+
+              <label className="block text-sm mb-1">
+                Date
+              </label>
+
+              <input
+                type="date"
+                className="w-full border p-2 rounded"
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+              />
+
+            </div>
 
 
-        {/* Print */}
-        <button
-          onClick={printReport}
-          disabled={!report.length}
-          className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50 hover:bg-green-700"
-        >
-          Print
-        </button>
+            {/* Buttons */}
+            <div className="flex gap-2">
 
 
-        {/* PDF */}
-        <button
-          onClick={preparePDF}
-          disabled={!report.length}
-          className="bg-purple-600 text-white px-4 py-2 rounded disabled:opacity-50 hover:bg-purple-700"
-        >
-          PDF
-        </button>
+              {/* Fetch */}
+              <button
+                onClick={fetchReport}
+                disabled={loading}
+                className="bg-blue-600 text-white px-6 py-2 rounded"
+              >
+                {loading ? "Fetching..." : "Fetch"}
+              </button>
+
+
+              {/* Print */}
+              <button
+                onClick={printReport}
+                disabled={!report.length}
+                className="border px-4 py-2 rounded"
+              >
+                Print
+              </button>
+
+
+              {/* PDF */}
+              <button
+                onClick={handleDownloadPdf}
+                disabled={!report.length || pdfLoading}
+                className="bg-purple-600 text-white px-4 py-2 rounded"
+              >
+                {pdfLoading ? "Generating..." : "Download PDF"}
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* Error */}
+        {error && (
+
+          <div className="text-red-600 bg-red-50 p-3 rounded">
+            {error}
+          </div>
+
+        )}
+
+
+        {/* Table */}
+        <div className="bg-white p-6 rounded shadow border">
+
+          {loading && <p>Loading...</p>}
+
+          {!loading && cleanLogs.length > 0 && (
+
+            <div ref={printRef}>
+              <ReportTable logs={cleanLogs} />
+            </div>
+
+          )}
+
+          {!loading && cleanLogs.length === 0 && (
+
+            <p className="text-gray-500 text-center">
+              No records found
+            </p>
+
+          )}
+
+        </div>
 
       </div>
 
 
-      {/* Status */}
-      {loading && (
-        <p className="text-slate-600">
-          Loading report...
-        </p>
-      )}
+      {/* Hidden PDF */}
+      {pdfTrigger && cleanLogs.length > 0 && (
 
-      {error && (
-        <p className="text-red-600 font-medium">
-          {error}
-        </p>
-      )}
+        <div style={{ display: "none" }}>
 
+          <PatrolReportPDF
+            key={pdfTrigger}
+            logs={cleanLogs}
+            factoryCode={factoryCode}
+            factoryName={factoryName}
+            factoryAddress={factoryAddress}
+            reportDate={reportDate}
+            generatedBy="System"
+          />
 
-      {/* Table */}
-      {!loading && !error && report.length > 0 && (
-
-        <div ref={printRef}>
-          <ReportTable logs={report} loading={loading} />
         </div>
-
-      )}
-
-
-      {/* Empty */}
-      {!loading && !error && report.length === 0 && (
-
-        <p className="text-gray-500">
-          No records found
-        </p>
-
-      )}
-
-
-      {/* PDF Generator */}
-      {showPDF && (
-
-        <PatrolReportPDF
-          logs={report}
-          factoryCode={factoryCode}
-          factoryName={factoryName}
-          factoryAddress={factoryAddress}
-          reportDate={reportDate}
-          generatedBy="System"
-        />
 
       )}
 

@@ -1,225 +1,265 @@
-'use client';
-import React, { useEffect, useState } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { ROUND_TIMES, RoundTime } from "./roundtime"; 
-import axios from 'axios';
+"use client";
 
-// --- INTERFACES ---
-export interface ScanLog {
-  id: string | number;
-  scan_time: string;
-  factory_code: string;
-  guard_name: string;
-  qr_name: string;
-  round: number;
-  lat?: string;
-  lon?: string;
-  status: "SUCCESS" | "MISSED" | string;
-  [key: string]: any;
-}
+import React, { useEffect } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
+import { ScanLog } from "../../types/scanlog";
+import { ROUND_TIMES } from "./roundtime";
+
+
+// ================= Props =================
 interface PatrolReportPDFProps {
+
   logs: ScanLog[];
+
   factoryCode: string;
   factoryName: string;
-  factoryAddress?: string; // optional, can be fetched
+  factoryAddress: string;
+
   reportDate: string;
   generatedBy: string;
 }
 
+
+// ================= Component =================
 const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
   logs,
   factoryCode,
   factoryName,
-  factoryAddress: initialAddress,
+  factoryAddress,
   reportDate,
-  generatedBy
+  generatedBy,
 }) => {
-  const [factoryAddress, setFactoryAddress] = useState<string>(initialAddress || '');
 
-  // Fetch factory address if not provided
-  useEffect(() => {
-    if (!factoryAddress && factoryCode) {
-      const fetchAddress = async () => {
-        try {
-          const res = await axios.get(`/api/factories/${factoryCode}`);
-          const address = res.data.address || 'N/A';
-          setFactoryAddress(address);
-        } catch (err) {
-          console.error("Failed to fetch factory address", err);
-          setFactoryAddress('N/A');
-        }
-      };
-      fetchAddress();
-    }
-  }, [factoryCode, factoryAddress]);
 
   useEffect(() => {
-    if (!logs || logs.length === 0) return;
-    handleGeneratePDF();
-  }, [logs, factoryAddress]);
 
-  const getFormattedDate = (dateString: string): string => {
-    if (!dateString) return "N/A";
-    try {
-      const d = new Date(dateString);
-      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch {
-      return dateString;
-    }
+    if (!logs.length) return;
+
+    generatePDF();
+
+    // eslint-disable-next-line
+  }, []);
+
+
+  // ================= Border =================
+  const drawBorder = (doc: jsPDF) => {
+
+    const w = doc.internal.pageSize.getWidth();
+    const h = doc.internal.pageSize.getHeight();
+
+    doc.setDrawColor(0, 0, 180);
+    doc.setLineWidth(0.8);
+
+    doc.rect(8, 8, w - 16, h - 16);
   };
 
-  const formatTime = (t?: string): string => {
-    if (!t) return "N/A";
-    try {
-      return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return "N/A";
-    }
-  };
 
-  const handleGeneratePDF = () => {
+  // ================= Generate =================
+  const generatePDF = () => {
+
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const borderMargin = 12; 
-    const leftMargin = 16;  
 
-    const drawPageBorder = () => {
-      doc.setDrawColor(50, 50, 50);
-      doc.setLineWidth(0.5);
-      doc.rect(borderMargin, borderMargin, pageWidth - (borderMargin * 2), pageHeight - (borderMargin * 2), 'S');
-    };
+    const width = doc.internal.pageSize.getWidth();
+    const height = doc.internal.pageSize.getHeight();
 
-    const THEME_GREEN: [number, number, number] = [6, 123, 69];
-    const THEME_RED: [number, number, number] = [200, 50, 50];
-    const THEME_BLUE: [number, number, number] = [0, 0, 139];
 
-    // Filter logs
-    const validLogs = logs.filter((log) => log.round !== 35);
+    // Font
+    doc.setFont("times", "bold");
 
-    const logsByRound: Record<number, ScanLog[]> = {};
-    validLogs.forEach((log) => {
-      const r = log.round || 1;
-      if (!logsByRound[r]) logsByRound[r] = [];
-      logsByRound[r].push(log);
+
+    // Border
+    drawBorder(doc);
+
+
+    // Header
+    doc.setTextColor(0, 0, 150);
+
+    doc.setFontSize(20);
+    doc.text("Security Patrol Report", width / 2, 20, { align: "center" });
+
+
+    doc.setFontSize(16);
+    doc.text(factoryName.toUpperCase(), width / 2, 30, {
+      align: "center",
     });
 
-    const sortedRoundKeys = Object.keys(logsByRound).map(Number).sort((a, b) => a - b);
 
-    drawPageBorder();
+    doc.setFont("times", "normal");
+    doc.setFontSize(11);
 
-    // HEADER
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, pageWidth, 48, 'F');
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("Security Patrol Report", pageWidth / 2, 20, { align: "center" });
-    doc.setTextColor(...THEME_RED);
-    doc.setFontSize(10);
-    doc.text(factoryName.toUpperCase(), pageWidth / 2, 27, { align: "center" });
-    doc.setTextColor(50, 50, 50);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text(factoryAddress || "N/A", pageWidth / 2, 33, { align: "center" });
+    // ✅ ADDRESS
+    doc.text(factoryAddress, width / 2, 38, {
+      align: "center",
+    });
 
-    // META INFO
-    const colLeftX = leftMargin;
-    const colRightX = 105;
-    const headerInfoStartY = 40;
-    const lineHeight = 5.5;
-    const displayDate = getFormattedDate(reportDate);
-    const generatedStr = formatTime(new Date().toISOString());
 
-    const drawHeaderMeta = (label: string, value: string, yPos: number, xPos: number) => {
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...THEME_BLUE);
-      doc.text(`${label}:`, xPos, yPos);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...THEME_BLUE);
-      doc.text(value, xPos + 25, yPos);
-    };
+    // Meta
+    doc.setTextColor(40);
 
-    drawHeaderMeta("Factory", factoryName, headerInfoStartY, colLeftX);
-    drawHeaderMeta("Date", displayDate, headerInfoStartY, colRightX);
-    drawHeaderMeta("Generated By", generatedBy, headerInfoStartY + lineHeight, colLeftX);
-    drawHeaderMeta("Generated At", generatedStr, headerInfoStartY + lineHeight, colRightX);
+    doc.text(`Date : ${reportDate}`, 14, 50);
+    doc.text(`Generated By : ${generatedBy}`, 14, 56);
+    doc.text(`Generated At : ${new Date().toLocaleString()}`, 14, 62);
 
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.5);
-    doc.line(leftMargin, 52, pageWidth - leftMargin, 52);
 
-    let finalY = 57;
+    let y = 72;
 
-    // ROUNDS LOOP
-    sortedRoundKeys.forEach((roundNumber) => {
-      if (finalY > 230) { 
-        doc.addPage();
-        drawPageBorder();
-        finalY = borderMargin + 10;
+
+    // Group by round
+    const byRound: Record<number, ScanLog[]> = {};
+
+    logs.forEach((l) => {
+
+      if (!byRound[l.round]) {
+        byRound[l.round] = [];
       }
 
-      const roundLogs = logsByRound[roundNumber];
-      const roundTime: RoundTime | undefined = ROUND_TIMES[roundNumber];
-      const startTime = roundTime?.start ?? "-";
-      const endTime = roundTime?.end ?? "-";
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text(`Round ${roundNumber}  |  Start: ${startTime}, End: ${endTime}`, leftMargin, finalY + 7);
-
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
-      doc.line(leftMargin, finalY + 10, pageWidth - leftMargin, finalY + 10);
-      finalY += 16;
-
-      const tableBody = roundLogs.length > 0
-        ? roundLogs.map((log) => [
-            formatTime(log.scan_time),
-            log.factory_code || "N/A",
-            log.guard_name || "N/A",
-            log.qr_name || "N/A",
-            log.lat || "0.0",
-            log.lon || "0.0",
-            log.status || "UNKNOWN"
-          ])
-        : [["-", "-", "-", "-", "-", "-", "NO DATA"]];
-
-      autoTable(doc, {
-        startY: finalY,
-        head: [['Time', 'Factory', 'Guard Name', 'Scan Point', 'Latitude', 'Longitude', 'Status']],
-        body: tableBody,
-        theme: 'plain',
-        headStyles: { fillColor: THEME_BLUE, textColor: 255, fontStyle: 'bold', fontSize: 9, halign: 'left' },
-        styles: { fontSize: 8, cellPadding: 3, lineColor: [230,230,230], lineWidth: { top:0, right:0, bottom:0.2, left:0 } },
-        alternateRowStyles: { fillColor: [250,253,250] },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index === 6) {
-            const cellContent = String(data.cell.raw);
-            if (cellContent.includes("SUCCESS")) { data.cell.styles.textColor = THEME_GREEN; data.cell.styles.fontStyle='bold'; }
-            else if (cellContent.includes("MISSED")) { data.cell.styles.textColor = THEME_RED; data.cell.styles.fontStyle='bold'; }
-          }
-        }
-      });
-
-      finalY = (doc as any).lastAutoTable.finalY + 15;
+      byRound[l.round].push(l);
     });
 
-    // FOOTER
-    const pageCount = doc.internal.pages.length - 1;
-    for(let i = 1; i <= pageCount; i++) {
+
+    // Render rounds
+    Object.keys(byRound)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .forEach((round) => {
+
+        if (y > height - 50) {
+
+          doc.addPage();
+          drawBorder(doc);
+          y = 20;
+        }
+
+
+        const time = ROUND_TIMES[round];
+
+
+        // Round header
+        doc.setFont("times", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 150);
+
+        doc.text(
+          `Round ${round} (${time?.start} - ${time?.end})`,
+          14,
+          y
+        );
+
+        y += 6;
+
+
+        // Rows
+        const rows = byRound[round].map((l) => [
+
+          l.scan_time
+            ? new Date(l.scan_time).toLocaleTimeString()
+            : "-",
+
+          l.guard_name || "-",
+
+          l.qr_name,
+
+          l.lat || "-",
+
+          l.lon || "-",
+
+          l.status,
+        ]);
+
+
+        // Table
+        autoTable(doc, {
+
+          startY: y,
+
+          head: [[
+            "Time",
+            "Guard",
+            "QR Point",
+            "Latitude",
+            "Longitude",
+            "Status",
+          ]],
+
+          body: rows,
+
+          theme: "grid",
+
+          styles: {
+            font: "times",
+            fontSize: 9,
+            cellPadding: 3,
+          },
+
+          headStyles: {
+            fillColor: [0, 70, 160],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+
+          alternateRowStyles: {
+            fillColor: [245, 248, 255],
+          },
+
+
+          // ✅ COLOR STATUS
+          didParseCell: (data) => {
+
+            if (data.section === "body" && data.column.index === 5) {
+
+              if (data.cell.raw === "SUCCESS") {
+
+                data.cell.styles.textColor = [0, 150, 0];
+                data.cell.styles.fontStyle = "bold";
+              }
+
+              if (data.cell.raw === "MISSED") {
+
+                data.cell.styles.textColor = [200, 0, 0];
+                data.cell.styles.fontStyle = "bold";
+              }
+            }
+          },
+
+
+          didDrawPage: () => {
+            drawBorder(doc);
+          },
+
+        });
+
+
+        y = (doc as any).lastAutoTable.finalY + 12;
+
+      });
+
+
+    // Footer
+    const pages = doc.getNumberOfPages();
+
+    for (let i = 1; i <= pages; i++) {
+
       doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(`Page ${i} of ${pageCount} - Generated by Security Verifier`, pageWidth / 2, pageHeight - 10, { align: "center" });
+
+      doc.setFont("times", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+
+      doc.text(
+        `Page ${i} of ${pages} | Security Verifier System`,
+        width / 2,
+        height - 12,
+        { align: "center" }
+      );
     }
 
-    const fileName = `Patrol_Report_${factoryCode}_${reportDate}.pdf`;
-    doc.save(fileName);
+
+    // Save
+    doc.save(`Patrol_Report_${factoryCode}_${reportDate}.pdf`);
   };
+
 
   return null;
 };
