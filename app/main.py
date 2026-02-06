@@ -1,8 +1,11 @@
+
+# app/main.py
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 # -----------------------------
-# Import all routers
+# Import routers
 # -----------------------------
 from app.routes import (
     auth,
@@ -12,18 +15,19 @@ from app.routes import (
     security_users,
     qr,
     scanning_details,
-    analytics,
     report_download
 )
 
+# Dependency for JWT authentication
 from app.dependencies import get_current_user
 
 # -----------------------------
-# App init
+# Initialize FastAPI app
 # -----------------------------
 app = FastAPI(
     title="Security Verifier API",
-    version="1.0.0"
+    version="1.0.0",
+    description="Backend API for Security Verifier system"
 )
 
 # -----------------------------
@@ -31,49 +35,46 @@ app = FastAPI(
 # -----------------------------
 origins = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000"
+    "http://127.0.0.1:3000",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,       # Adjust in production
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 # -----------------------------
 # Include routers
 # -----------------------------
 
-# Auth routes → open
+# 🔓 Auth → Open access
 app.include_router(auth.router)
 
-# Admin routes → JWT required
+# 🔐 Admin → JWT required
 app.include_router(
     admin.router,
     dependencies=[Depends(get_current_user)]
 )
 
-# Factories → Open
+# 🏭 Factories
 app.include_router(factories.router)
 
-# Scan Points → Open
+# 📍 Scan Points
 app.include_router(scan_points.router)
 
-# Security Users → Open
+# 👮 Security Users
 app.include_router(security_users.router)
 
-# QR Codes → Open
+# 🔳 QR Codes
 app.include_router(qr.router)
 
-# Scanning Details → Open (mobile scanning)
+# 📲 Scanning (Mobile)
 app.include_router(scanning_details.router)
 
-# Analytics → Open
-app.include_router(analytics.router)
-
-# ✅ Report Download (Patrol Report)
+# 📄 Report Download (Patrol Report)
 app.include_router(report_download.router)
 
 # -----------------------------
@@ -81,6 +82,10 @@ app.include_router(report_download.router)
 # -----------------------------
 @app.get("/", summary="API Root")
 def root():
+    """
+    Root endpoint to verify API is running
+    """
     return {
         "message": "Security Verifier API is running ✅"
     }
+
