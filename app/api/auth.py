@@ -1,37 +1,53 @@
+# app/routes/auth.py
+
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from datetime import timedelta
-from app.database import supabase
 from app.core.security import create_access_token
-from app.config import ACCESS_TOKEN_EXPIRE_MINUTES
+from datetime import timedelta
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+# ----------------------
+# Request body schema
+# ----------------------
 class LoginRequest(BaseModel):
     user_id: str
     user_pin: str
 
-@router.post("/auth/login")
-def login(data: LoginRequest):
-    res = supabase.table("login_info").select("*").eq("user_id", data.user_id).execute()
-    users = res.data
-    if not users:
-        raise HTTPException(status_code=401, detail="Invalid user_id")
-    
-    user = users[0]
+# ----------------------
+# Mock DB / Supabase check
+# ----------------------
+# For now, we use a hardcoded admin
+MOCK_USERS = {
+    "admin001": {
+        "user_pin": "1234",
+        "role": "ADMIN",
+        "name": "Main Admin"
+    }
+}
 
-    if user["user_pin"] != data.user_pin:
-        raise HTTPException(status_code=401, detail="Invalid user_pin")
+# ----------------------
+# Login Route
+# ----------------------
+@router.post("/login")
+async def login(payload: LoginRequest):
+    user = MOCK_USERS.get(payload.user_id)
 
+    if not user or user["user_pin"] != payload.user_pin:
+        raise HTTPException(status_code=401, detail="Invalid User ID or Password")
+
+    # Token expires in 60 minutes
     access_token = create_access_token(
-        data={"user_id": user["user_id"], "role": user["role"]},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        {"user_id": payload.user_id, "role": user["role"]},
+        expires_delta=timedelta(minutes=60)
     )
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "role": user["role"],
-        "name": user["name"]
-    }
-
+    return JSONResponse(
+        content={
+            "access_token": access_token,
+            "token_type": "bearer",
+            "role": user["role"],
+            "name": user["name"]
+        }
+    )
