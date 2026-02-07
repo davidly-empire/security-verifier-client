@@ -1,4 +1,3 @@
-
 # app/main.py
 
 from fastapi import FastAPI, Depends
@@ -40,7 +39,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # Adjust in production
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,7 +52,7 @@ app.add_middleware(
 # 🔓 Auth → Open access
 app.include_router(auth.router)
 
-# 🔐 Admin → JWT required
+# 🔐 Admin → JWT required (Protected)
 app.include_router(
     admin.router,
     dependencies=[Depends(get_current_user)]
@@ -88,4 +87,3 @@ def root():
     return {
         "message": "Security Verifier API is running ✅"
     }
-

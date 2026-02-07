@@ -1,18 +1,14 @@
-# Ignore environment files in any folder
-.env
-.env.local
-.env.production
-.env*.local
+# Virtual environment
+venv/
 
-# Ignore Python virtual environments and cache
-backend/venv/
-backend/__pycache__/
-backend/*.pyc
+# Python cache
+__pycache__/
+*.pyc
 
-# Ignore Next.js build output and modules
-frontend/node_modules/
-frontend/.next/
-frontend/out/
+venv/
 
-# Ignore OS files
-.DS_Store
+# Logs
+*.log
+
+# VS Code
+.vscode/
