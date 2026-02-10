@@ -1,3 +1,5 @@
+// app/api/axiosClient.js
+
 import axios from "axios";
 
 // ---------------------------
@@ -13,8 +15,8 @@ const axiosClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: false, // ⚠️ Explicitly false since we aren't using Auth Cookies
-  timeout: 10000, // 10 seconds
+  withCredentials: false, 
+  timeout: 10000, 
 });
 
 // ---------------------------
@@ -76,6 +78,36 @@ export const pingBackend = async () => {
   } catch (e) {
     return false;
   }
+};
+
+// ---------------------------
+// API: Generate Patrol Report
+// ---------------------------
+// Note: Removed type annotations (factoryCode: string, reportDate: string)
+// to satisfy the .js file requirement.
+export const generatePatrolReport = async (factoryCode, reportDate) => {
+  try {
+    // Assuming your Python endpoint is named /generate-patrol-report
+    const response = await axiosClient.get("/generate-patrol-report", {
+      params: {
+        factory_code: factoryCode,
+        report_date: reportDate,
+      },
+    });
+
+    return response.data; 
+  } catch (error) {
+    console.error("Failed to fetch patrol report:", error);
+    throw error;
+  }
+};
+
+// ---------------------------
+// API: Fallback (If you still need the old function name)
+// ---------------------------
+export const getScanLogsByFactory = async (factoryCode) => {
+  // You can reuse the new function here if needed
+  return generatePatrolReport(factoryCode, "2023-01-01"); 
 };
 
 export default axiosClient;

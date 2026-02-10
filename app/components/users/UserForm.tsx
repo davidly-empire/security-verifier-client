@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react'
-import { createSecurityUser, updateSecurityUser } from '../../api/securityUsers'
+import {
+  createSecurityUser,
+  updateSecurityUser,
+} from '../../api/securityUsers'
+
 import { SecurityUser } from '@/app/types/securityUser'
 
 interface UserFormProps {
@@ -21,7 +25,7 @@ export default function UserForm({
     security_id: '',
     security_name: '',
     security_password: '',
-    factory: factories?.[0] ?? '',
+    factory: factories?.[0] || '',
   })
 
   /* ================= LOAD USER FOR EDIT ================= */
@@ -33,8 +37,16 @@ export default function UserForm({
         security_password: '',
         factory: user.factory,
       })
+    } else {
+      // Reset when adding new user
+      setFormData({
+        security_id: '',
+        security_name: '',
+        security_password: '',
+        factory: factories?.[0] || '',
+      })
     }
-  }, [user])
+  }, [user, factories])
 
   /* ================= HANDLE INPUT ================= */
   const handleChange = (
@@ -52,35 +64,68 @@ export default function UserForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
+    // Basic validation
+    if (!formData.security_id.trim()) {
+      alert('Security ID required')
+      return
+    }
+
+    if (!formData.security_name.trim()) {
+      alert('Security name required')
+      return
+    }
+
+    if (!user && !formData.security_password.trim()) {
+      alert('Password required')
+      return
+    }
+
     try {
       if (user) {
+        // UPDATE
         await updateSecurityUser(user.security_id, {
           security_name: formData.security_name,
           factory: formData.factory,
+
           ...(formData.security_password
             ? { security_password: formData.security_password }
             : {}),
         })
       } else {
-        await createSecurityUser(formData)
+        // CREATE
+        await createSecurityUser({
+          security_id: formData.security_id,
+          security_name: formData.security_name,
+          security_password: formData.security_password,
+          factory: formData.factory,
+        })
       }
 
       onSave()
       onClose()
-    } catch (err) {
-      console.error(err)
-      alert('Error saving security user')
+    } catch (err: any) {
+      console.error('Save error:', err)
+
+      alert(
+        err?.message ||
+          'Error saving security user. Check console.'
+      )
     }
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center">
       <div className="bg-white p-6 rounded-lg max-w-md w-full mt-24">
+
         <h2 className="text-xl font-bold mb-4">
           {user ? 'Edit Security User' : 'Add Security User'}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+        >
+          {/* Security ID */}
           <input
             name="security_id"
             value={formData.security_id}
@@ -91,6 +136,7 @@ export default function UserForm({
             disabled={!!user}
           />
 
+          {/* Name */}
           <input
             name="security_name"
             value={formData.security_name}
@@ -100,16 +146,22 @@ export default function UserForm({
             required
           />
 
+          {/* Password */}
           <input
             type="password"
             name="security_password"
             value={formData.security_password}
             onChange={handleChange}
             className="w-full border p-2 rounded"
-            placeholder={user ? 'New Password (optional)' : 'Password'}
+            placeholder={
+              user
+                ? 'New Password (optional)'
+                : 'Password'
+            }
             required={!user}
           />
 
+          {/* Factory */}
           <select
             name="factory"
             value={formData.factory}
@@ -124,6 +176,7 @@ export default function UserForm({
             ))}
           </select>
 
+          {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
@@ -140,6 +193,7 @@ export default function UserForm({
               Save
             </button>
           </div>
+
         </form>
       </div>
     </div>

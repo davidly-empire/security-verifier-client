@@ -1,461 +1,263 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/app/components/ui/button';
-import { FileDown, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from "react";
+import { getPatrolReport, PatrolReportItem } from "../api/report";
+import { getFactories } from "../api/factories.api";
+import PatrolReportPDF from "../components/reports/PatrolReportPDF";
+import ReportTable from "../components/reports/ReportTable";
 
-// Import UI components (Dashboard only)
-import ReportFilters from '@/app/components/reports/ReportFilters'; 
-import ReportSummaryCards from '@/app/components/reports/ReportSummaryCards';
-
-// IMPORT THE PDF COMPONENT (Hidden logic only)
-import PatrolReportPDF from '@/app/components/reports/PatrolReportPDF';
-
-// Import API types and helpers
-import {
-  ScanLog,
-  getAllScanLogs,
-  getScanLogsByFactory,
-} from '@/app/api/reports';
-
-/* ---------------- TYPES ---------------- */
-
-interface PatrolReportResponse {
+// ================= TYPES =================
+type Factory = {
+  factory_code: string;
   factory_name: string;
-  factory_address: string;
-  report_date: string;
-  generated_by: string;
-  generated_at: string;
-  rounds: any[];
-}
+  factory_address: string | null;
+};
 
-/* ---------------- EMBEDDED REPORT TABLE ---------------- */
+// ================= ICONS (SVG) =================
+const IconFactory = () => (
+  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+);
 
-interface Column {
-  key: keyof ScanLog
-  label: string
-}
+const IconCalendar = () => (
+  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+);
 
-const EmbeddedReportTable = ({ logs, loading }: { logs: ScanLog[], loading: boolean }) => {
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof ScanLog
-    direction: 'asc' | 'desc'
-  }>({
-    key: 'scan_time',
-    direction: 'desc'
-  })
+const IconDownload = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+);
 
-  const [currentPage, setCurrentPage] = useState(1)
-  const rowsPerPage = 10
+const IconSpinner = () => (
+  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
 
-  const columns: Column[] = [
-    { key: 'scan_time', label: 'Scan Time' },
-    { key: 'factory_code', label: 'Factory' },
-    { key: 'guard_name', label: 'Guard' },
-    { key: 'qr_name', label: 'Scan Point' },
-    { key: 'lat', label: 'Lat' }, 
-    { key: 'log', label: 'Long' }, 
-    { key: 'status', label: 'Status' },
-  ]
-
-  const handleSort = (key: keyof ScanLog) => {
-    let direction: 'asc' | 'desc' = 'asc'
-    if (sortConfig?.key === key) {
-      if (sortConfig.direction === 'asc') {
-        direction = 'desc'
-      } else {
-        direction = 'asc'
-      }
-    } else {
-      direction = 'desc' 
-    }
-    setSortConfig({ key, direction })
-  }
-
-  const sortedData = useMemo(() => {
-    if (!sortConfig) return logs
-
-    return [...logs].sort((a, b) => {
-      const aValue = a[sortConfig.key]
-      const bValue = b[sortConfig.key]
-
-      if (sortConfig.key === 'scan_time') {
-        const dateA = new Date(aValue as string).getTime()
-        const dateB = new Date(bValue as string).getTime()
-        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA
-      }
-
-      if (!aValue || !bValue) return 0
-
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
-      return 0
-    })
-  }, [logs, sortConfig])
-
-  const indexOfLastRow = currentPage * rowsPerPage
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage
-  const currentRows = sortedData.slice(indexOfFirstRow, indexOfLastRow)
-  const totalPages = Math.ceil(sortedData.length / rowsPerPage)
-
-  const renderCell = (row: ScanLog, key: keyof ScanLog) => {
-    const value = row[key]
-
-    if (key === 'scan_time' && value) {
-      return new Date(value as string).toLocaleString()
-    }
-
-    if (key === 'status') {
-      const color =
-        value === 'SUCCESS'
-          ? 'bg-green-100 text-green-800'
-          : value === 'MISSED'
-          ? 'bg-red-100 text-red-800'
-          : 'bg-gray-100 text-gray-800'
-
-      return (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
-          {value ?? 'UNKNOWN'}
-        </span>
-      )
-    }
-
-    return value ?? '—'
-  }
-
-  if (loading) {
-    return (
-      <div className="text-center py-6 text-slate-500">
-        Loading scan logs...
-      </div>
-    );
-  }
-
-  if (!logs.length) {
-    return (
-      <div className="text-center py-6 text-slate-500">
-        No scan records found
-      </div>
-    );
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
-          <tr>
-            {columns.map((col) => {
-              const isActive = sortConfig?.key === col.key
-              return (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer select-none transition-colors ${
-                    isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    {isActive ? (
-                      sortConfig.direction === 'asc' ? <ChevronLeft className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />
-                    ) : (
-                      <div className="w-3 h-3 opacity-30 flex flex-col justify-center gap-[1px]">
-                         <div className="w-full h-[1px] bg-slate-400"></div>
-                         <div className="w-full h-[1px] bg-slate-400"></div>
-                      </div>
-                    )}
-                  </div>
-                </th>
-              )
-            })}
-          </tr>
-        </thead>
-
-        <tbody className="bg-white divide-y divide-slate-200">
-          {currentRows.map((row) => (
-            <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-              {columns.map((col) => (
-                <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                  {renderCell(row, col.key)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {totalPages > 1 && (
-        <div className="mt-4 flex justify-between items-center px-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 border rounded shadow-sm text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Previous
-          </button>
-
-          <span className="text-sm font-medium text-slate-600">
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 border rounded shadow-sm text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ---------------- PAGE COMPONENT ---------------- */
-
+// ================= PAGE =================
 export default function ReportDownloadPage() {
-  /* ---------- STATE ---------- */
-  const [activeTab, setActiveTab] = useState('scanCompliance');
-  const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
-
-  const [filters, setFilters] = useState({
-    dateRange: { start: '', end: '' },
-    site: '',
-    route: '', 
-    guard: '',
-  });
-
-  const [logs, setLogs] = useState<ScanLog[]>([]);
+  // State
+  const [adminName, setAdminName] = useState("");
+  const [factories, setFactories] = useState<Factory[]>([]);
+  const [factoryCode, setFactoryCode] = useState("");
+  const [reportDate, setReportDate] = useState(new Date().toISOString().slice(0, 10));
+  const [report, setReport] = useState<PatrolReportItem[]>([]);
+  
+  // UI State
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfTrigger, setPdfTrigger] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
-  // State for Patrol Report Data (Internal logic only, no UI)
-  const [patrolReportData, setPatrolReportData] = useState<PatrolReportResponse | null>(null);
-  const [downloadingPatrol, setDownloadingPatrol] = useState(false);
-  const [patrolError, setPatrolError] = useState<string | null>(null);
-
-  /* ---------- FETCH LOGS ---------- */
+  // ================= LOAD ADMIN =================
   useEffect(() => {
-    fetchLogs();
-  }, [filters.site]);
+    const name = localStorage.getItem("adminName");
+    if (name && name.trim() !== "") {
+      setAdminName(name);
+    } else {
+      window.location.href = "/login";
+    }
+  }, []);
 
-  const fetchLogs = async () => {
+  // ================= LOAD FACTORIES =================
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await getFactories();
+        if (res?.data?.length) {
+          setFactories(res.data);
+          setFactoryCode(res.data[0].factory_code);
+        }
+      } catch {
+        setError("Failed to load factories list.");
+      }
+    };
+    load();
+  }, []);
+
+  // ================= FETCH =================
+  const fetchReport = async () => {
+    if (!factoryCode) return;
+    
     setLoading(true);
+    setError(null);
+    setPdfTrigger(null); // Reset PDF trigger on new fetch
+
     try {
-      const data = filters.site
-        ? await getScanLogsByFactory(filters.site)
-        : await getAllScanLogs();
-      setLogs(data);
+      const data = await getPatrolReport(factoryCode, reportDate);
+      setReport(data);
+      if (data.length === 0) setError("No patrol records found for this date.");
     } catch (err) {
-      console.error('Failed to fetch scan logs', err);
+      setError("Failed to fetch report data. Please try again.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------- PATROL REPORT HANDLER ---------- */
-
-  const handleFetchPatrolReport = async () => {
-    if (!filters.site) {
-      alert("Please select a Site (Factory) first.");
-      return;
-    }
-    if (!filters.dateRange.start) {
-      alert("Please select a Start Date for report.");
-      return;
-    }
-
-    setDownloadingPatrol(true);
-    setPatrolError(null);
-
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"; 
-      const params = new URLSearchParams({
-        factory_code: filters.site,
-        date: filters.dateRange.start,
-      });
-
-      const response = await fetch(`${baseUrl}/api/report/patrol?${params.toString()}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to download report: ${response.statusText}. ${errorText}`);
-      }
-
-      const reportData: PatrolReportResponse = await response.json();
-      
-      // Set data to state. This triggers the hidden component to generate PDF.
-      setPatrolReportData(reportData);
-      
-    } catch (err) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setPatrolError(message);
-      alert(`Error: ${message}`);
-    } finally {
-      setDownloadingPatrol(false);
-    }
+  // ================= PDF =================
+  const handleDownloadPdf = () => {
+    if (!report.length) return;
+    setPdfLoading(true);
+    setPdfTrigger(Date.now());
+    setTimeout(() => setPdfLoading(false), 800);
   };
 
-  /* ---------- TRANSFORM DATA ---------- */
-  const scanComplianceData = useMemo(() => {
-    return logs.map((log, index) => ({
-      id: log.id ?? index,
-      siteName: log.factory_code ?? 'N/A',
-      routeName: log.qr_name ?? 'N/A',
-      guardName: log.guard_name ?? 'N/A',
-      missedScans: log.status === 'MISSED' ? 1 : 0,
-      compliancePercentage: log.status === 'SUCCESS' ? 100 : 0,
+  // ================= CLEAN =================
+  const cleanLogs = useMemo(() => {
+    return report.map((i) => ({
+      ...i,
+      lat: i.lat ?? undefined,
+      lon: i.lon ?? undefined,
+      guard_name: i.guard_name ?? undefined,
     }));
-  }, [logs]);
+  }, [report]);
 
-  /* ---------------- UI ---------------- */
+  const currentFactory = factories.find((f) => f.factory_code === factoryCode);
+  const factoryName = currentFactory?.factory_name || factoryCode;
 
   return (
-    <>
-      <style jsx global>{`
-        @keyframes fadeInSlide {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-in-slide {
-          animation: fadeInSlide 0.5s ease-out forwards;
-        }
-      `}</style>
-
-      <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-700">
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* ================= PRO HEADER ================= */}
-        <div className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              
-              {/* Breadcrumb / Title Area */}
-              <div className="flex items-center gap-4 overflow-hidden">
-                <div className="h-8 w-1 bg-gradient-to-b from-blue-600 to-blue-400 rounded-full"></div>
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
-                    Scan Compliance
-                  </h1>
-                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">
-                    Reports Dashboard
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions section removed */}
-            </div>
+        {/* Header Section */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Patrol Reports</h1>
+            <p className="mt-2 text-slate-500">View logs and generate official patrol documentation.</p>
           </div>
-        </div>
-
-        {/* ================= MAIN CONTENT ================= */}
-        <div className="max-w-7xl mx-auto px-6 py-8 flex-grow">
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            
-            {/* --- LEFT COLUMN: FILTERS & ACTION --- */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
-                
-                {/* Filter Section */}
-                <div className="p-6 flex-grow">
-                  <div className="mb-4 pb-4 border-b border-slate-100">
-                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Report Configuration</h3>
-                  </div>
-                  <ReportFilters 
-                    filters={filters} 
-                    setFilters={setFilters}
-                  />
-                </div>
+          <div className="flex items-center gap-3 px-4 py-2 bg-white rounded-lg border border-slate-200 shadow-sm">
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <span className="text-sm font-medium text-slate-600">Admin: {adminName || "Loading..."}</span>
+          </div>
+        </div>
 
-                {/* Action Section (Download Button) */}
-                <div className="p-6 bg-slate-50 border-t border-slate-200 fade-in-slide">
-                  <Button 
-                    onClick={handleFetchPatrolReport} 
-                    disabled={downloadingPatrol}
-                    className="w-full group flex items-center justify-center gap-2 shadow-md hover:bg-slate-800 bg-slate-900 text-white px-6 py-3 rounded-xl transition-all duration-300"
-                  >
-                    {downloadingPatrol ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin"></div>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <FileDown className="w-4 h-4" />
-                        Download PDF Report
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-[10px] text-center text-slate-400 mt-2">
-                      Requires Site and Start Date selection
-                  </p>
+        {/* Controls Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6 transition-shadow hover:shadow-md">
+          
+          {error && (
+            <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+            
+            {/* Factory Input */}
+            <div className="md:col-span-5 space-y-2">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Factory Location</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <IconFactory />
+                </div>
+                <select
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors appearance-none cursor-pointer"
+                  value={factoryCode}
+                  onChange={(e) => setFactoryCode(e.target.value)}
+                >
+                  {factories.map((f) => (
+                    <option key={f.factory_code} value={f.factory_code}>
+                      {f.factory_name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                   <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
               </div>
             </div>
 
-            {/* --- RIGHT COLUMN: DATA --- */}
-            <div className="lg:col-span-2 space-y-6 flex flex-col">
-              
-              {/* Error Alert */}
-              {patrolError && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3 shadow-sm fade-in-slide">
-                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-sm font-medium">{patrolError}</span>
+            {/* Date Input */}
+            <div className="md:col-span-4 space-y-2">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Patrol Date</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <IconCalendar />
                 </div>
-              )}
-
-              {/* Summary Cards */}
-              {!loading && (
-                <div className="fade-in-slide">
-                  <ReportSummaryCards logs={logs as any} />
-                </div>
-              )}
-
-              {/* Table Container */}
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-grow">
-                
-                {loading ? (
-                  <div className="p-12 flex flex-col items-center justify-center space-y-4">
-                    <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
-                    <p className="text-slate-500 font-medium">Loading scan logs...</p>
-                  </div>
-                ) : logs.length === 0 ? (
-                  <div className="p-12 text-center flex flex-col items-center justify-center h-64">
-                    <div className="bg-slate-50 p-4 rounded-full mb-4">
-                      <Search className="w-8 h-8 text-slate-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-slate-900">No Data Found</h3>
-                    <p className="text-slate-500 text-sm mt-2">
-                      Adjust your filters or select a different date range.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="fade-in-slide">
-                    <EmbeddedReportTable logs={logs} loading={loading} />
-                  </div>
-                )}
+                <input
+                  type="date"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                />
               </div>
+            </div>
 
+            {/* Actions */}
+            <div className="md:col-span-3 flex gap-3">
+              <button
+                onClick={fetchReport}
+                disabled={loading}
+                className="flex-1 flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm shadow-indigo-200"
+              >
+                {loading ? <IconSpinner /> : "View Report"}
+              </button>
+
+              <button
+                onClick={handleDownloadPdf}
+                disabled={!report.length || pdfLoading || loading}
+                className="flex-1 flex justify-center items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium py-2.5 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                title="Download PDF"
+              >
+                {pdfLoading ? <IconSpinner /> : <IconDownload />}
+                <span className="hidden sm:inline">PDF</span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* 
-           HIDDEN INTEGRATION POINT:
-           The component below is rendered with 'display: none'. 
-           It handles the PDF generation logic but does not show any UI on the screen.
-        */}
-        {patrolReportData && (
-           <div style={{ display: 'none' }} aria-hidden="true">
-             <PatrolReportPDF reportData={patrolReportData} 
-        factoryCode={filters.site}  />
-           </div>
-        )}
+        {/* Table Container */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px] flex flex-col">
+          
+          {!loading && cleanLogs.length > 0 && (
+            <div className="overflow-x-auto" ref={printRef}>
+              <div className="border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+                 <h3 className="font-semibold text-slate-800">Report Data</h3>
+              </div>
+              <ReportTable logs={cleanLogs} />
+            </div>
+          )}
 
+          {loading && (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+              <IconSpinner />
+              <p className="mt-3 text-sm font-medium animate-pulse">Fetching patrol logs...</p>
+            </div>
+          )}
+
+          {!loading && !cleanLogs.length && (
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              </div>
+              <h3 className="text-slate-900 font-medium text-lg">No records found</h3>
+              <p className="text-slate-500 mt-1 max-w-sm">
+                Select a factory and date, then click "View Report" to load patrol data.
+              </p>
+            </div>
+          )}
+
+        </div>
+
+        {/* Hidden PDF Component */}
+        {pdfTrigger && cleanLogs.length > 0 && (
+          <div className="hidden">
+            <PatrolReportPDF
+              key={pdfTrigger}
+              logs={cleanLogs}
+              factoryCode={factoryCode}
+              factoryName={factoryName}
+              factoryAddress={currentFactory?.factory_address || "N/A"}
+              reportDate={reportDate}
+              generatedBy={adminName}
+            />
+          </div>
+        )}
+        
       </div>
-    </>
+    </div>
   );
 }
