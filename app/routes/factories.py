@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.database import supabase
 from app.schemas.factory import FactoryCreate, FactoryResponse
 
+
 router = APIRouter(
     prefix="/factories",
     tags=["Factories"]
@@ -19,11 +20,11 @@ def create_factory(payload: FactoryCreate):
         "factory_code": payload.factory_code,
         "factory_name": payload.factory_name,
 
-        # ✅ KEEP location
+        # ✅ SAVE LOCATION
         "location": payload.location,
 
-        # ✅ ALSO STORE in factory_address
-        "factory_address": payload.location,
+        # ✅ SAVE REAL ADDRESS (IMPORTANT)
+        "factory_address": payload.factory_address,
 
         "is_active": True
 
@@ -105,9 +106,11 @@ def update_factory(factory_code: str, payload: FactoryCreate):
 
         "factory_name": payload.factory_name,
 
-        # ✅ UPDATE BOTH
+        # ✅ UPDATE LOCATION
         "location": payload.location,
-        "factory_address": payload.location
+
+        # ✅ UPDATE REAL ADDRESS
+        "factory_address": payload.factory_address,
 
     }).eq("factory_code", factory_code).execute()
 
