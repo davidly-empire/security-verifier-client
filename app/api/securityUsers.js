@@ -1,51 +1,24 @@
-const BASE_URL = 'http://127.0.0.1:8000/security-users';
+import axiosClient from "./axiosClient";
 
-export async function getSecurityUsers() {
-  const res = await fetch(BASE_URL);
+/* ================= GET ================= */
 
-  if (!res.ok) {
-    throw new Error('Failed to fetch security users');
-  }
+export const getSecurityUsers = () =>
+  axiosClient.get("/security-users");
 
-  return res.json();
-}
 
-export async function createSecurityUser(payload) {
-  const res = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+/* ================= CREATE ================= */
 
-  if (!res.ok) {
-    throw new Error('Failed to create security user');
-  }
+export const createSecurityUser = (data) =>
+  axiosClient.post("/security-users", data);
 
-  return res.json();
-}
 
-export async function updateSecurityUser(id, payload) {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+/* ================= UPDATE ================= */
 
-  if (!res.ok) {
-    throw new Error('Failed to update security user');
-  }
+export const updateSecurityUser = (id, data) =>
+  axiosClient.put(`/security-users/${id}`, data);
 
-  return res.json();
-}
 
-export async function deleteSecurityUser(id) {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    method: 'DELETE',
-  });
+/* ================= DELETE ================= */
 
-  if (!res.ok) {
-    throw new Error('Failed to delete security user');
-  }
-
-  return true;
-}
+export const deleteSecurityUser = (id) =>
+  axiosClient.delete(`/security-users/${id}`);

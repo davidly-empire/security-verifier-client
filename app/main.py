@@ -1,11 +1,7 @@
-# app/main.py
-
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-# -----------------------------
 # Import routers
-# -----------------------------
 from app.routes import (
     auth,
     admin,
@@ -17,12 +13,9 @@ from app.routes import (
     report_download
 )
 
-# Dependency for JWT authentication
 from app.dependencies import get_current_user
 
-# -----------------------------
 # Initialize FastAPI app
-# -----------------------------
 app = FastAPI(
     title="Security Verifier API",
     version="1.0.0",
@@ -30,16 +23,12 @@ app = FastAPI(
 )
 
 # -----------------------------
-# CORS settings
+# CORS SETTINGS (Fixed for Network Access)
 # -----------------------------
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
+# We allow "*" during development so your phone/tablet/laptop can connect via IP
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,7 +38,7 @@ app.add_middleware(
 # Include routers
 # -----------------------------
 
-# 🔓 Auth → Open access
+# 🔓 Auth → /auth/login (Prefix is defined inside auth.py)
 app.include_router(auth.router)
 
 # 🔐 Admin → JWT required (Protected)
@@ -58,22 +47,12 @@ app.include_router(
     dependencies=[Depends(get_current_user)]
 )
 
-# 🏭 Factories
+# Other Routers
 app.include_router(factories.router)
-
-# 📍 Scan Points
 app.include_router(scan_points.router)
-
-# 👮 Security Users
 app.include_router(security_users.router)
-
-# 🔳 QR Codes
 app.include_router(qr.router)
-
-# 📲 Scanning (Mobile)
 app.include_router(scanning_details.router)
-
-# 📄 Report Download (Patrol Report)
 app.include_router(report_download.router)
 
 # -----------------------------
@@ -81,9 +60,12 @@ app.include_router(report_download.router)
 # -----------------------------
 @app.get("/", summary="API Root")
 def root():
-    """
-    Root endpoint to verify API is running
-    """
     return {
-        "message": "Security Verifier API is running ✅"
+        "message": "Security Verifier API is running ✅",
+        "docs": "http://10.10.6.67:8000/docs"
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    # This ensures it runs on your local network
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

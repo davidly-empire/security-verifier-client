@@ -1,130 +1,228 @@
 'use client'
 
-import { useState } from 'react'
-import { deleteSecurityUser } from '../../api/securityUsers'
-import { SecurityUser } from '@/app/types/securityUser'
+import { useEffect, useState } from 'react'
 
-interface UsersTableProps {
-  users: SecurityUser[]
-  onEditUser: (user: SecurityUser) => void
-  onRefresh: () => void
+import {
+  getSecurityUsers,
+  deleteSecurityUser,
+} from '../../api/securityUsers'
+
+
+/* ================= TYPES ================= */
+
+interface User {
+  security_id: string
+  security_name: string
+  security_password: string
+  factory: string
 }
 
-export default function UsersTable({
-  users,
-  onEditUser,
-  onRefresh,
-}: UsersTableProps) {
-  const [visiblePasswords, setVisiblePasswords] = useState<
-    Record<string, boolean>
-  >({})
+
+/* ================= COMPONENT ================= */
+
+export default function UsersTable() {
+
+  /* ---------- State ---------- */
+
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const [visiblePasswords, setVisiblePasswords] =
+    useState<Record<string, boolean>>({})
+
+
+  /* ---------- Load Users ---------- */
+
+  const loadUsers = async () => {
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await getSecurityUsers()
+
+      // ✅ Axios returns array in res.data
+      const list = Array.isArray(res.data) ? res.data : []
+
+      setUsers(list)
+
+    } catch (err) {
+      console.error(err)
+      setError('Failed to load users')
+
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
+  /* ---------- Delete User ---------- */
+
+  const handleDelete = async (id: string) => {
+
+    if (!confirm('Delete this user?')) return
+
+    try {
+      await deleteSecurityUser(id)
+      await loadUsers()
+
+    } catch (err) {
+      alert('Delete failed')
+    }
+  }
+
+
+  /* ---------- Toggle Password ---------- */
 
   const togglePassword = (id: string) => {
-    setVisiblePasswords(prev => ({
+
+    setVisiblePasswords((prev) => ({
       ...prev,
       [id]: !prev[id],
     }))
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return
 
-    try {
-      await deleteSecurityUser(id)
-      onRefresh()
-    } catch (err) {
-      console.error(err)
-      alert('Failed to delete user')
-    }
-  }
+  /* ---------- Init ---------- */
+
+  useEffect(() => {
+    loadUsers()
+  }, [])
+
+
+  /* ================= UI ================= */
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Security ID
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Security Name
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Password
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Factory
-            </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Actions
-            </th>
-          </tr>
-        </thead>
+    <div className="p-6 bg-gray-50 min-h-screen">
 
-        <tbody className="bg-white divide-y divide-gray-200">
-          {users.map(user => (
-            <tr
-              key={user.security_id}
-              className="hover:bg-gray-50"
-            >
-              <td className="px-6 py-4 text-sm text-gray-900">
-                {user.security_id}
-              </td>
+      <h2 className="text-2xl font-bold mb-6">
+        Security Users
+      </h2>
 
-              <td className="px-6 py-4 text-sm text-gray-900">
-                {user.security_name}
-              </td>
 
-              <td className="px-6 py-4 text-sm text-gray-900 flex items-center gap-2">
-                {visiblePasswords[user.security_id]
-                  ? user.security_password
-                  : '******'}
-
-                <span
-                  className="cursor-pointer select-none"
-                  onClick={() =>
-                    togglePassword(user.security_id)
-                  }
-                >
-                  {visiblePasswords[user.security_id]
-                    ? '🙈'
-                    : '👁️'}
-                </span>
-              </td>
-
-              <td className="px-6 py-4 text-sm text-gray-900">
-                {user.factory}
-              </td>
-
-              <td className="px-6 py-4 text-right text-sm font-medium flex gap-3 justify-end">
-                <button
-                  className="text-blue-600 hover:underline"
-                  onClick={() => onEditUser(user)}
-                >
-                  Edit
-                </button>
-
-                <button
-                  className="text-red-600 hover:underline"
-                  onClick={() =>
-                    handleDelete(user.security_id)
-                  }
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {users.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">
-            No security users found
-          </p>
+      {/* Error */}
+      {error && (
+        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
+          {error}
         </div>
       )}
+
+
+      {/* Loading */}
+      {loading && (
+        <p className="text-gray-500">
+          Loading users...
+        </p>
+      )}
+
+
+      {/* Table */}
+      {!loading && (
+        <div className="overflow-x-auto bg-white rounded shadow">
+
+          <table className="min-w-full border-collapse">
+
+            <thead className="bg-gray-100">
+
+              <tr>
+                <th className="p-3 border text-left">ID</th>
+                <th className="p-3 border text-left">Name</th>
+                <th className="p-3 border text-left">Password</th>
+                <th className="p-3 border text-left">Factory</th>
+                <th className="p-3 border text-right">Actions</th>
+              </tr>
+
+            </thead>
+
+
+            <tbody>
+
+              {/* No Data */}
+              {users.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="p-6 text-center text-gray-500"
+                  >
+                    No users found
+                  </td>
+                </tr>
+              )}
+
+
+              {/* Rows */}
+              {users.map((user) => (
+
+                <tr
+                  key={user.security_id}
+                  className="hover:bg-gray-50"
+                >
+
+                  {/* ID */}
+                  <td className="p-3 border text-sm">
+                    {user.security_id}
+                  </td>
+
+
+                  {/* Name */}
+                  <td className="p-3 border text-sm">
+                    {user.security_name}
+                  </td>
+
+
+                  {/* Password */}
+                  <td className="p-3 border text-sm flex items-center gap-2">
+
+                    {visiblePasswords[user.security_id]
+                      ? user.security_password
+                      : '******'}
+
+                    <span
+                      className="cursor-pointer select-none"
+                      onClick={() =>
+                        togglePassword(user.security_id)
+                      }
+                    >
+                      {visiblePasswords[user.security_id]
+                        ? '🙈'
+                        : '👁️'}
+                    </span>
+
+                  </td>
+
+
+                  {/* Factory */}
+                  <td className="p-3 border text-sm">
+                    {user.factory}
+                  </td>
+
+
+                  {/* Actions */}
+                  <td className="p-3 border text-right text-sm space-x-3">
+
+                    <button
+                      className="text-red-600 hover:underline"
+                      onClick={() =>
+                        handleDelete(user.security_id)
+                      }
+                    >
+                      Delete
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              ))}
+
+            </tbody>
+
+          </table>
+
+        </div>
+      )}
+
     </div>
   )
 }
