@@ -6,10 +6,9 @@ import { Eye, Pencil, Trash2 } from "lucide-react";
 export type QRCode = QRData;
 
 interface QrTableProps {
-  qrCodes: QRCode[]; 
+  qrCodes: QRCode[];
   onEdit: (qr: QRCode) => void;
   onView: (qr: QRCode) => void;
-  // Removed onToggleStatus from props
   onDelete: (id: number) => void;
 }
 
@@ -17,20 +16,15 @@ interface QrTableProps {
 const normalizeQR = (data: QRData): QRCode => ({
   qr_id: Number(data.qr_id),
   qr_name: data.qr_name || "Unnamed QR",
-  lat: typeof data.lat === 'number' ? data.lat : 0,
-  lon: typeof data.lon === 'number' ? data.lon : 0,
-  status: (data.status === "active" || data.status === "inactive") ? data.status : "inactive",
+  lat: typeof data.lat === "number" ? data.lat : 0,
+  lon: typeof data.lon === "number" ? data.lon : 0,
+  status: data.status === "active" || data.status === "inactive" ? data.status : "inactive",
   created_at: data.created_at,
   factory_code: data.factory_code || "",
+  waiting_time: typeof data.waiting_time === "number" ? data.waiting_time : 15, // ✅ Default waiting time
 });
 
-export default function QrTable({
-  qrCodes,
-  onEdit,
-  onView,
-  // Removed onToggleStatus
-  onDelete,
-}: QrTableProps) {
+export default function QrTable({ qrCodes, onEdit, onView, onDelete }: QrTableProps) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -50,6 +44,9 @@ export default function QrTable({
                 Coordinates
               </th>
               <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Waiting Time (s) {/* ✅ New Column */}
+              </th>
+              <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 Status
               </th>
               <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -61,10 +58,10 @@ export default function QrTable({
           <tbody className="bg-white divide-y divide-slate-100">
             {qrCodes.map((qrData) => {
               const qr = normalizeQR(qrData);
-              
+
               return (
                 <tr key={qr.qr_id} className="hover:bg-slate-50 transition-colors duration-150 group">
-                  
+
                   {/* Name Column */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-col">
@@ -94,6 +91,11 @@ export default function QrTable({
                     </div>
                   </td>
 
+                  {/* Waiting Time Column */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                    {qr.waiting_time} s
+                  </td>
+
                   {/* Status Column */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -120,7 +122,7 @@ export default function QrTable({
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      
+
                       <button
                         onClick={() => onEdit(qr)}
                         className="p-1.5 rounded-md text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
@@ -128,8 +130,6 @@ export default function QrTable({
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
-
-                      {/* Removed Power / Toggle Status Button */}
 
                       <button
                         onClick={() => onDelete(qr.qr_id)}
@@ -151,7 +151,6 @@ export default function QrTable({
       {qrCodes.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="bg-slate-50 p-4 rounded-full mb-4">
-            {/* Icon */}
             <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
             </svg>

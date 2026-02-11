@@ -8,6 +8,7 @@ export interface QRData {
   lon: number;
   factory_code: string;
   status?: string;
+  waiting_time: number; // ✅ Required waiting time
   created_at?: string;
 }
 
@@ -18,36 +19,48 @@ export interface Factory {
 }
 
 // ----------------- CREATE QR -----------------
-export const createQR = async (data: QRData): Promise<QRData> => {
-  // Removed token parameter and headers
-  const res = await axiosClient.post("/qr/", data);
+// Exclude qr_id and created_at when creating
+export const createQR = async (
+  data: Omit<QRData, "qr_id" | "created_at">
+): Promise<QRData> => {
+  // Ensure waiting_time defaults to 15 if missing
+  const payload = { waiting_time: 15, ...data };
+  const res = await axiosClient.post("/qr/", payload);
   return res.data;
 };
 
 // ----------------- GET QR BY FACTORY -----------------
 export const fetchQRByFactory = async (factoryCode: string): Promise<QRData[]> => {
-  // Removed token parameter and headers
   const res = await axiosClient.get(`/qr/factory/${factoryCode}`);
   return res.data;
 };
 
+// ----------------- GET QR BY ID -----------------
+export const fetchQRById = async (qrId: number): Promise<QRData> => {
+  const res = await axiosClient.get(`/qr/${qrId}`);
+  return res.data;
+};
+
 // ----------------- UPDATE QR -----------------
-export const updateQR = async (qrId: number, data: Partial<QRData>): Promise<QRData> => {
-  // Removed token parameter and headers
-  const res = await axiosClient.put(`/qr/${qrId}`, data);
-  // Supabase returns an array of updated rows
-  return res.data[0];
+// Exclude qr_id and created_at for update payload
+export const updateQR = async (
+  qrId: number,
+  data: Partial<Omit<QRData, "qr_id" | "created_at">>
+): Promise<QRData> => {
+  // Ensure waiting_time is always included, fallback to 15 if undefined
+  const payload = { waiting_time: 15, ...data };
+  const res = await axiosClient.put(`/qr/${qrId}`, payload);
+  // Some backends return array of updated rows
+  return Array.isArray(res.data) ? res.data[0] : res.data;
 };
 
 // ----------------- DELETE QR -----------------
 export const deleteQR = async (qrId: number): Promise<void> => {
-  // Removed token parameter and headers
   await axiosClient.delete(`/qr/${qrId}`);
 };
 
 // ----------------- FETCH FACTORIES -----------------
 export const fetchFactories = async (): Promise<Factory[]> => {
-  // Removed token parameter and headers
   const res = await axiosClient.get("/factories");
   return res.data;
 };

@@ -14,7 +14,7 @@ interface QrFormProps {
 
 export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: QrFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Initialize form state
   const [formData, setFormData] = useState<QRCode>({
     qr_id: 0,
@@ -23,30 +23,34 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
     lon: 0,
     status: "inactive",
     factory_code: "",
+    waiting_time: 15, // ✅ default waiting_time
   });
 
   // Populate form when editing or when factories load
   useEffect(() => {
     if (qr) {
-      setFormData(qr);
+      setFormData({ ...qr, waiting_time: qr.waiting_time ?? 15 });
     } else if (factories.length > 0) {
-      setFormData({
-        qr_id: 0,
-        qr_name: "",
-        lat: 0,
-        lon: 0,
-        status: "inactive",
+      setFormData((prev) => ({
+        ...prev,
         factory_code: factories[0].factory_code,
-      });
+        waiting_time: 15,
+      }));
     }
   }, [qr, factories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!formData.qr_name || !formData.factory_code) {
       alert("Please fill in Name and Factory.");
+      return;
+    }
+
+    // Ensure waiting_time is valid
+    if (formData.waiting_time === undefined || formData.waiting_time < 0 || isNaN(formData.waiting_time)) {
+      alert("Waiting time must be a non-negative number.");
       return;
     }
 
@@ -61,14 +65,14 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300"
         onClick={onClose}
       ></div>
 
       {/* Modal Card */}
       <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl shadow-blue-900/10 z-10 transform transition-all">
-        
+
         {/* Header */}
         <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur">
           <div>
@@ -89,7 +93,7 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          
+
           {/* Factory Select */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Factory Location</label>
@@ -107,7 +111,9 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-blue-500 transition-colors duration-200">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
             </div>
           </div>
@@ -125,32 +131,45 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
             />
           </div>
 
-          {/* Coordinates Grid */}
+          {/* Coordinates */}
           <div className="space-y-2">
-             <div className="flex items-center gap-2 mb-2">
-               <MapPin className="w-4 h-4 text-blue-600" />
-               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">GPS Coordinates</label>
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-               <input
-                 type="number"
-                 step="any"
-                 value={formData.lat}
-                 onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) || 0 })}
-                 className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
-                 placeholder="Latitude"
-                 required
-               />
-               <input
-                 type="number"
-                 step="any"
-                 value={formData.lon}
-                 onChange={(e) => setFormData({ ...formData, lon: parseFloat(e.target.value) || 0 })}
-                 className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
-                 placeholder="Longitude"
-                 required
-               />
-             </div>
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">GPS Coordinates</label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="number"
+                step="any"
+                value={formData.lat}
+                onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) || 0 })}
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
+                placeholder="Latitude"
+                required
+              />
+              <input
+                type="number"
+                step="any"
+                value={formData.lon}
+                onChange={(e) => setFormData({ ...formData, lon: parseFloat(e.target.value) || 0 })}
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
+                placeholder="Longitude"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Waiting Time */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Waiting Time (seconds)</label>
+            <input
+              type="number"
+              min={0}
+              value={formData.waiting_time ?? 15}
+              onChange={(e) => setFormData({ ...formData, waiting_time: parseInt(e.target.value) || 15 })}
+              className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
+              required
+            />
           </div>
 
           {/* Status */}
@@ -166,7 +185,9 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
                 <option value="inactive">Inactive</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-blue-500 transition-colors duration-200">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
             </div>
           </div>
