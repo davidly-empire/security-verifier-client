@@ -119,7 +119,7 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
   // -------------------------------
   const columns: Column[] = [
     { key: "scan_time", label: "Scan Time" },
-    { key: "factory_code", label: "Factory" },
+    
     { key: "guard_name", label: "Guard" },
     { key: "qr_name", label: "Scan Point" },
     { key: "lat", label: "Latitude" },
