@@ -59,12 +59,12 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
   const normalizeStatus = (
     status?: string | null,
     scanTime?: string | null
-  ): "SUCCESS" | "MISSED" | "PROGRESS" => {
+  ): "SUCCESS" | "MISSED" | "No Data" => {
 
     // If no time → PROGRESS
-    if (!scanTime) return "PROGRESS";
+    if (!scanTime) return "No Data";
 
-    if (!status) return "PROGRESS";
+    if (!status) return "No Data";
 
     const s = status.toLowerCase().trim();
 
@@ -80,7 +80,7 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
       return "MISSED";
     }
 
-    return "PROGRESS";
+    return "No Data";
   };
 
 
@@ -246,7 +246,7 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
         color = "bg-red-100 text-red-800";
       }
 
-      if (finalStatus === "PROGRESS") {
+      if (finalStatus === "No Data") {
         color = "bg-orange-100 text-orange-800";
       }
 

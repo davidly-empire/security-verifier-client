@@ -67,7 +67,7 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
   // ================= Status Normalizer =================
   const normalizeStatus = (status?: string | null): string => {
 
-    if (!status) return "PROGRESS";
+    if (!status) return "No Data";
 
     const s = status.toLowerCase().trim();
 
@@ -79,7 +79,7 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
       return "MISSED";
     }
 
-    return "PROGRESS";
+    return "No Data";
   };
 
 
@@ -209,7 +209,7 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
         // No scan
         if (byRound[round].length === 0) {
 
-          rows.push(["-", "-", "-", "-", "-", "PROGRESS"]);
+          rows.push(["-", "-", "-", "-", "-", "No Data"]);
 
         } else {
 
@@ -219,7 +219,7 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
 
             const status = hasTime
               ? normalizeStatus(l.status)
-              : "PROGRESS";
+              : "No Data";
 
             return [
 
@@ -291,7 +291,7 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
                 data.cell.styles.fontStyle = "bold";
               }
 
-              if (data.cell.raw === "PROGRESS") {
+              if (data.cell.raw === "No Data") {
                 data.cell.styles.textColor = [255, 140, 0];
                 data.cell.styles.fontStyle = "bold";
               }
