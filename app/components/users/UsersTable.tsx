@@ -1,22 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-
 import {
   getSecurityUsers,
   deleteSecurityUser,
-} from '../../api/securityUsers'
+} from '../../api/securityUsers.api'
 
-
-/* ================= TYPES ================= */
-
-interface User {
-  security_id: string
-  security_name: string
-  security_password: string
-  factory: string
-}
-
+import { SecurityUser } from '@/app/types/securityUser'
 
 /* ================= COMPONENT ================= */
 
@@ -24,13 +14,12 @@ export default function UsersTable() {
 
   /* ---------- State ---------- */
 
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<SecurityUser[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const [visiblePasswords, setVisiblePasswords] =
     useState<Record<string, boolean>>({})
-
 
   /* ---------- Load Users ---------- */
 
@@ -40,12 +29,17 @@ export default function UsersTable() {
     setError('')
 
     try {
-      const res = await getSecurityUsers()
+      const list = await getSecurityUsers()
 
-      // ✅ Axios returns array in res.data
-      const list = Array.isArray(res.data) ? res.data : []
+      // ✅ Normalize optional password safely
+      const normalized = Array.isArray(list)
+        ? list.map(user => ({
+            ...user,
+            security_password: user.security_password ?? '',
+          }))
+        : []
 
-      setUsers(list)
+      setUsers(normalized)
 
     } catch (err) {
       console.error(err)
@@ -55,7 +49,6 @@ export default function UsersTable() {
       setLoading(false)
     }
   }
-
 
   /* ---------- Delete User ---------- */
 
@@ -72,7 +65,6 @@ export default function UsersTable() {
     }
   }
 
-
   /* ---------- Toggle Password ---------- */
 
   const togglePassword = (id: string) => {
@@ -83,15 +75,13 @@ export default function UsersTable() {
     }))
   }
 
-
   /* ---------- Init ---------- */
 
   useEffect(() => {
     loadUsers()
   }, [])
 
-
-  /* ================= UI ================= */
+  /* ================= UI (UNCHANGED) ================= */
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -100,31 +90,24 @@ export default function UsersTable() {
         Security Users
       </h2>
 
-
-      {/* Error */}
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
           {error}
         </div>
       )}
 
-
-      {/* Loading */}
       {loading && (
         <p className="text-gray-500">
           Loading users...
         </p>
       )}
 
-
-      {/* Table */}
       {!loading && (
         <div className="overflow-x-auto bg-white rounded shadow">
 
           <table className="min-w-full border-collapse">
 
             <thead className="bg-gray-100">
-
               <tr>
                 <th className="p-3 border text-left">ID</th>
                 <th className="p-3 border text-left">Name</th>
@@ -132,26 +115,18 @@ export default function UsersTable() {
                 <th className="p-3 border text-left">Factory</th>
                 <th className="p-3 border text-right">Actions</th>
               </tr>
-
             </thead>
-
 
             <tbody>
 
-              {/* No Data */}
               {users.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="p-6 text-center text-gray-500"
-                  >
+                  <td colSpan={5} className="p-6 text-center text-gray-500">
                     No users found
                   </td>
                 </tr>
               )}
 
-
-              {/* Rows */}
               {users.map((user) => (
 
                 <tr
@@ -159,19 +134,14 @@ export default function UsersTable() {
                   className="hover:bg-gray-50"
                 >
 
-                  {/* ID */}
                   <td className="p-3 border text-sm">
                     {user.security_id}
                   </td>
 
-
-                  {/* Name */}
                   <td className="p-3 border text-sm">
                     {user.security_name}
                   </td>
 
-
-                  {/* Password */}
                   <td className="p-3 border text-sm flex items-center gap-2">
 
                     {visiblePasswords[user.security_id]
@@ -191,14 +161,10 @@ export default function UsersTable() {
 
                   </td>
 
-
-                  {/* Factory */}
                   <td className="p-3 border text-sm">
                     {user.factory}
                   </td>
 
-
-                  {/* Actions */}
                   <td className="p-3 border text-right text-sm space-x-3">
 
                     <button

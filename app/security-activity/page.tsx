@@ -34,15 +34,15 @@ export default function SecurityActivityPage() {
   const handleFilter = (filters: ActivityFilterValues) => {
     let filtered = [...activities]
 
-    if (filters.activityType !== 'all') {
+    if (filters.activityType !== 'All') {
       filtered = filtered.filter(a => a.type === filters.activityType)
     }
 
-    if (filters.guard !== 'all') {
+    if (filters.guard !== 'All') {
       filtered = filtered.filter(a => a.guardName === filters.guard)
     }
 
-    if (filters.route !== 'all') {
+    if (filters.route !== 'All') {
       filtered = filtered.filter(a => a.routeName === filters.route)
     }
 
@@ -64,6 +64,9 @@ export default function SecurityActivityPage() {
         }
         emergencyAlerts={
           filteredActivities.filter(a => a.type === 'Emergency Alert').length
+        }
+        issuesReported={
+          filteredActivities.filter(a => a.status !== 'Success').length
         }
       />
 

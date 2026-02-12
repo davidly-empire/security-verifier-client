@@ -1,54 +1,66 @@
-
 "use client";
-import React, { useState, useEffect } from "react";
-import { getPatrolReportPDF, PatrolReportResponse } from "../api/report"; // create this API call
-import PatrolReportPDF from "./PatrolReportPDF";
 
-interface ReportPDFUIProps {
+import React from "react";
+import { PatrolReportResponse } from "@/app/api/report";
+
+interface PatrolReportPDFProps {
+  reportData: PatrolReportResponse;
   factoryCode: string;
-  reportDate: string;
 }
 
-const ReportPDFUI: React.FC<ReportPDFUIProps> = ({ factoryCode, reportDate }) => {
-  const [reportData, setReportData] = useState<PatrolReportResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchReport = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getPatrolReportPDF(factoryCode, reportDate); // backend call
-      setReportData(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (factoryCode && reportDate) {
-      fetchReport();
-    }
-  }, [factoryCode, reportDate]);
-
+const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
+  reportData,
+  factoryCode,
+}) => {
   return (
-    <div>
-      <button
-        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4"
-        onClick={fetchReport}
-        disabled={loading}
-      >
-        {loading ? "Generating PDF..." : "Download Report PDF"}
-      </button>
+    <div className="hidden">
+      {/* This component is meant for PDF generation */}
+      
+      <div className="p-6 bg-white text-black">
+        <h1 className="text-2xl font-bold mb-4">
+          Patrol Report
+        </h1>
 
-      {error && <p className="text-red-600">{error}</p>}
+        <p className="mb-2">
+          <strong>Factory Code:</strong> {factoryCode}
+        </p>
 
-      {/* Render PDF generator once data is fetched */}
-      {reportData && <PatrolReportPDF reportData={reportData} factoryCode={factoryCode} />}
+        <p className="mb-4">
+          <strong>Report Date:</strong> {reportData.report_date}
+        </p>
+
+        <table className="w-full border border-collapse text-sm">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="border p-2 text-left">QR Name</th>
+              <th className="border p-2 text-left">Round</th>
+              <th className="border p-2 text-left">Guard</th>
+              <th className="border p-2 text-left">Scan Time</th>
+              <th className="border p-2 text-left">Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {reportData.items.map((item, index) => (
+              <tr key={index}>
+                <td className="border p-2">{item.qr_name}</td>
+                <td className="border p-2">{item.round}</td>
+                <td className="border p-2">
+                  {item.guard_name || "—"}
+                </td>
+                <td className="border p-2">
+                  {item.scan_time || "—"}
+                </td>
+                <td className="border p-2">
+                  {item.status}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
 
-export default ReportPDFUI;
+export default PatrolReportPDF;

@@ -1,6 +1,27 @@
 'use client';
 
-export default function UserActions({ user, onEdit, onToggleStatus }) {
+type UserRole = 'Admin' | 'Supervisor' | 'Guard';
+type UserStatus = 'Active' | 'Inactive';
+
+interface User {
+  id: number;
+  role: UserRole;
+  status: UserStatus;
+  // add other fields if needed
+}
+
+interface UserActionsProps {
+  user: User;
+  onEdit: (user: User) => void;
+  onToggleStatus: (userId: number) => void;
+}
+
+export default function UserActions({
+  user,
+  onEdit,
+  onToggleStatus,
+}: UserActionsProps) {
+
   const isAdmin = user.role === 'Admin';
 
   return (
@@ -11,6 +32,7 @@ export default function UserActions({ user, onEdit, onToggleStatus }) {
       >
         Edit
       </button>
+
       {!isAdmin && (
         <button
           onClick={() => onToggleStatus(user.id)}

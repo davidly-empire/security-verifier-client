@@ -13,11 +13,13 @@ export default function ActivityFilters({
   onFilter,
   activities,
 }: ActivityFiltersProps) {
+
   const [filters, setFilters] = useState<ActivityFilterValues>({
     dateRange: '',
-    activityType: 'all',
-    guard: 'all',
-    route: 'all',
+    activityType: 'All',
+    guard: 'All',
+    route: 'All',
+    severity: 'All',   // ✅ FIX ADDED
   })
 
   const activityTypes = [...new Set(activities.map(a => a.type))]
@@ -50,12 +52,10 @@ export default function ActivityFilters({
 
   return (
     <>
-      {/* ✅ FAVICON (ONLY CHANGE MADE) */}
       <Head>
         <link rel="icon" href="/favicon.jpeg" />
       </Head>
 
-      {/* PRINT STYLES */}
       <style jsx global>{`
         @media print {
           .hide-on-print {
@@ -64,15 +64,18 @@ export default function ActivityFilters({
         }
       `}</style>
 
-      {/* FILTERS (HIDDEN IN PRINT) */}
       <div className="flex flex-wrap gap-4 items-end hide-on-print">
         <div className="w-full md:w-auto">
-          <label className="block text-sm font-medium mb-1">Date Range</label>
+          <label className="block text-sm font-medium mb-1">
+            Date Range
+          </label>
           <input
             type="date"
             className="w-full rounded-md border px-3 py-2"
             value={filters.dateRange}
-            onChange={(e) => handleFilterChange('dateRange', e.target.value)}
+            onChange={(e) =>
+              handleFilterChange('dateRange', e.target.value)
+            }
           />
         </div>
 
@@ -87,7 +90,7 @@ export default function ActivityFilters({
               handleFilterChange('activityType', e.target.value)
             }
           >
-            <option value="all">All Types</option>
+            <option value="All">All Types</option>
             {activityTypes.map(type => (
               <option key={type} value={type}>
                 {type}
@@ -97,13 +100,17 @@ export default function ActivityFilters({
         </div>
 
         <div className="w-full md:w-auto">
-          <label className="block text-sm font-medium mb-1">Guard</label>
+          <label className="block text-sm font-medium mb-1">
+            Guard
+          </label>
           <select
             className="w-full rounded-md border px-3 py-2"
             value={filters.guard}
-            onChange={(e) => handleFilterChange('guard', e.target.value)}
+            onChange={(e) =>
+              handleFilterChange('guard', e.target.value)
+            }
           >
-            <option value="all">All Guards</option>
+            <option value="All">All Guards</option>
             {guards.map(guard => (
               <option key={guard} value={guard}>
                 {guard}
@@ -119,9 +126,11 @@ export default function ActivityFilters({
           <select
             className="w-full rounded-md border px-3 py-2"
             value={filters.route}
-            onChange={(e) => handleFilterChange('route', e.target.value)}
+            onChange={(e) =>
+              handleFilterChange('route', e.target.value)
+            }
           >
-            <option value="all">All Routes</option>
+            <option value="All">All Routes</option>
             {routes.map(route => (
               <option key={route} value={route}>
                 {route}

@@ -1,6 +1,6 @@
 import axiosClient from "./axiosClient";
 
-// ----------------- QR Data -----------------
+// ----------------- QR Data (Response Model) -----------------
 export interface QRData {
   qr_id: number;
   qr_name: string;
@@ -8,7 +8,7 @@ export interface QRData {
   lon: number;
   factory_code: string;
   status?: string;
-  waiting_time: number; // ✅ Required waiting time
+  waiting_time: number;
   created_at?: string;
 }
 
@@ -18,39 +18,58 @@ export interface Factory {
   factory_name: string;
 }
 
+// ----------------- Request Models -----------------
+
+// For CREATE (backend generates qr_id + created_at)
+export type CreateQRPayload = Omit<QRData, "qr_id" | "created_at">;
+
+// For UPDATE (partial allowed, exclude immutable fields)
+export type UpdateQRPayload = Partial<Omit<QRData, "qr_id" | "created_at">>;
+
 // ----------------- CREATE QR -----------------
-// Exclude qr_id and created_at when creating
 export const createQR = async (
-  data: Omit<QRData, "qr_id" | "created_at">
+  data: CreateQRPayload
 ): Promise<QRData> => {
-  // Ensure waiting_time defaults to 15 if missing
-  const payload = { waiting_time: 15, ...data };
+
+  const payload: CreateQRPayload = {
+    ...data,
+    waiting_time: data.waiting_time ?? 15,
+  };
+
   const res = await axiosClient.post("/qr/", payload);
   return res.data;
 };
 
 // ----------------- GET QR BY FACTORY -----------------
-export const fetchQRByFactory = async (factoryCode: string): Promise<QRData[]> => {
+export const fetchQRByFactory = async (
+  factoryCode: string
+): Promise<QRData[]> => {
   const res = await axiosClient.get(`/qr/factory/${factoryCode}`);
   return res.data;
 };
 
 // ----------------- GET QR BY ID -----------------
-export const fetchQRById = async (qrId: number): Promise<QRData> => {
+export const fetchQRById = async (
+  qrId: number
+): Promise<QRData> => {
   const res = await axiosClient.get(`/qr/${qrId}`);
   return res.data;
 };
 
 // ----------------- UPDATE QR -----------------
-// Exclude qr_id and created_at for update payload
 export const updateQR = async (
   qrId: number,
-  data: Partial<Omit<QRData, "qr_id" | "created_at">>
+  data: UpdateQRPayload
 ): Promise<QRData> => {
-  // Ensure waiting_time is always included, fallback to 15 if undefined
-  const payload = { waiting_time: 15, ...data };
+
+  const payload: UpdateQRPayload = {
+    ...data,
+    waiting_time: data.waiting_time ?? 15,
+  };
+
   const res = await axiosClient.put(`/qr/${qrId}`, payload);
-  // Some backends return array of updated rows
+
+  // Handle cases where backend returns array
   return Array.isArray(res.data) ? res.data[0] : res.data;
 };
 

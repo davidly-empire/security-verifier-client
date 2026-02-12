@@ -1,49 +1,48 @@
 import axios, { AxiosError } from "axios";
 
-// -----------------------------
-// Types
-// -----------------------------
+/* =====================================================
+   TYPES
+===================================================== */
+
 export interface PatrolReportItem {
   qr_name: string;
   round: number;
   scan_time: string | null;
-
   lat: string | null;
   lon: string | null;
-
   guard_name: string | null;
-
-  // ✅ Added PENDING
   status: "SUCCESS" | "MISSED" | "PENDING";
 }
 
+export interface PatrolReportResponse {
+  factory_code: string;
+  report_date: string;
+  items: PatrolReportItem[];
+}
 
-// Optional wrapped response
 interface WrappedResponse {
   success?: boolean;
   data?: PatrolReportItem[];
   message?: string;
 }
 
+/* =====================================================
+   API CONFIG
+===================================================== */
 
-// -----------------------------
-// API Config
-// -----------------------------
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-
-// Axios instance
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
 });
 
+/* =====================================================
+   CORE FETCH FUNCTION
+===================================================== */
 
-// -----------------------------
-// API Function
-// -----------------------------
-export async function getPatrolReport(
+async function fetchPatrolReportData(
   factoryCode: string,
   reportDate: string
 ): Promise<PatrolReportItem[]> {
@@ -64,21 +63,15 @@ export async function getPatrolReport(
 
     const result = response.data;
 
-
-    // Case 1: Direct array
     if (Array.isArray(result)) {
       return result;
     }
 
-
-    // Case 2: Wrapped response
     if (result?.data && Array.isArray(result.data)) {
       return result.data;
     }
 
-
-    console.error("❌ Unexpected patrol report response:", result);
-
+    console.error("Unexpected patrol report response:", result);
     return [];
 
   } catch (err) {
@@ -86,7 +79,7 @@ export async function getPatrolReport(
     const error = err as AxiosError<any>;
 
     console.error(
-      "❌ Error fetching patrol report:",
+      "Error fetching patrol report:",
       error.response?.data || error.message
     );
 
@@ -95,4 +88,33 @@ export async function getPatrolReport(
       "Unable to fetch patrol report"
     );
   }
+}
+
+/* =====================================================
+   EXPORT 1: Used by report-download/page.tsx
+===================================================== */
+
+export async function getPatrolReport(
+  factoryCode: string,
+  reportDate: string
+): Promise<PatrolReportItem[]> {
+  return fetchPatrolReportData(factoryCode, reportDate);
+}
+
+/* =====================================================
+   EXPORT 2: Used by PDF UI
+===================================================== */
+
+export async function getPatrolReportPDF(
+  factoryCode: string,
+  reportDate: string
+): Promise<PatrolReportResponse> {
+
+  const items = await fetchPatrolReportData(factoryCode, reportDate);
+
+  return {
+    factory_code: factoryCode,
+    report_date: reportDate,
+    items,
+  };
 }
