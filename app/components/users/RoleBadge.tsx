@@ -1,7 +1,14 @@
 'use client';
 
-export default function RoleBadge({ role }) {
-  const getBadgeClasses = (role) => {
+type UserRole = 'Admin' | 'Supervisor' | 'Guard' | string;
+
+interface RoleBadgeProps {
+  role: UserRole;
+}
+
+export default function RoleBadge({ role }: RoleBadgeProps) {
+
+  const getBadgeClasses = (role: UserRole): string => {
     switch (role) {
       case 'Admin':
         return 'bg-purple-100 text-purple-800';
@@ -15,7 +22,9 @@ export default function RoleBadge({ role }) {
   };
 
   return (
-    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getBadgeClasses(role)}`}>
+    <span
+      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getBadgeClasses(role)}`}
+    >
       {role}
     </span>
   );

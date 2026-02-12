@@ -1,76 +1,144 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import UserForm from '../components/users/UserForm'
-import UsersTable from '../components/users/UsersTable'
-import {
-  getSecurityUsers,
-} from '../api/securityUsers'
-
+import { useState } from 'react'
+import { deleteSecurityUser } from '../../api/securityUsers.api'
 import { SecurityUser } from '@/app/types/securityUser'
 
-export default function SecurityUsersPage() {
-  const [users, setUsers] = useState<SecurityUser[]>([])
-  const [editingUser, setEditingUser] = useState<SecurityUser | null>(null)
-  const [showForm, setShowForm] = useState(false)
+/* ================= PROPS ================= */
 
-  // TODO: later fetch from backend
-  const factories = ['F001', 'F002', 'F003']
+interface UsersTableProps {
+  users: SecurityUser[]
+  onEditUser: (user: SecurityUser) => void
+  onRefresh: () => Promise<void>
+}
 
-  const fetchUsers = async () => {
+/* ================= COMPONENT ================= */
+
+export default function UsersTable({
+  users,
+  onEditUser,
+  onRefresh,
+}: UsersTableProps) {
+
+  const [visiblePasswords, setVisiblePasswords] =
+    useState<Record<string, boolean>>({})
+
+  /* ---------- Delete ---------- */
+
+  const handleDelete = async (id: string) => {
+
+    if (!confirm('Delete this user?')) return
+
     try {
-      const data = await getSecurityUsers()
-      setUsers(data || [])
+      await deleteSecurityUser(id)
+      await onRefresh()
     } catch (err) {
-      console.error(err)
-      alert('Failed to fetch users')
+      alert('Delete failed')
     }
   }
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
+  /* ---------- Toggle Password ---------- */
 
-  const handleEditUser = (user: SecurityUser) => {
-    setEditingUser(user)
-    setShowForm(true)
+  const togglePassword = (id: string) => {
+    setVisiblePasswords(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }))
   }
 
+  /* ================= UI ================= */
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between mb-4">
-        <h1 className="text-2xl font-bold">
-          Security Users Management
-        </h1>
+    <div className="overflow-x-auto bg-white rounded shadow">
 
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-          onClick={() => {
-            setEditingUser(null)
-            setShowForm(true)
-          }}
-        >
-          Add Security User
-        </button>
-      </div>
+      <table className="min-w-full border-collapse">
 
-      <UsersTable
-        users={users}
-        onEditUser={handleEditUser}
-        onRefresh={fetchUsers}
-      />
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-3 border text-left">ID</th>
+            <th className="p-3 border text-left">Name</th>
+            <th className="p-3 border text-left">Password</th>
+            <th className="p-3 border text-left">Factory</th>
+            <th className="p-3 border text-right">Actions</th>
+          </tr>
+        </thead>
 
-      {showForm && (
-        <UserForm
-          user={editingUser}
-          factories={factories}
-          onClose={() => setShowForm(false)}
-          onSave={() => {
-            fetchUsers()
-            setShowForm(false)
-          }}
-        />
-      )}
+        <tbody>
+
+          {users.length === 0 && (
+            <tr>
+              <td colSpan={5} className="p-6 text-center text-gray-500">
+                No users found
+              </td>
+            </tr>
+          )}
+
+          {users.map((user) => (
+
+            <tr
+              key={user.security_id}
+              className="hover:bg-gray-50"
+            >
+
+              <td className="p-3 border text-sm">
+                {user.security_id}
+              </td>
+
+              <td className="p-3 border text-sm">
+                {user.security_name}
+              </td>
+
+              <td className="p-3 border text-sm flex items-center gap-2">
+
+                {visiblePasswords[user.security_id]
+                  ? user.security_password ?? ''
+                  : '******'}
+
+                <span
+                  className="cursor-pointer select-none"
+                  onClick={() =>
+                    togglePassword(user.security_id)
+                  }
+                >
+                  {visiblePasswords[user.security_id]
+                    ? '🙈'
+                    : '👁️'}
+                </span>
+
+              </td>
+
+              <td className="p-3 border text-sm">
+                {user.factory}
+              </td>
+
+              <td className="p-3 border text-right text-sm space-x-3">
+
+                <button
+                  className="text-blue-600 hover:underline"
+                  onClick={() => onEditUser(user)}
+                >
+                  Edit
+                </button>
+
+                <button
+                  className="text-red-600 hover:underline"
+                  onClick={() =>
+                    handleDelete(user.security_id)
+                  }
+                >
+                  Delete
+                </button>
+
+              </td>
+
+            </tr>
+
+          ))}
+
+        </tbody>
+
+      </table>
+
     </div>
   )
 }

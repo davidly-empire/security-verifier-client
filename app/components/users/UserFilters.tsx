@@ -1,19 +1,48 @@
 'use client';
 
-export default function UserFilters({ filters, onFilterChange, sites }) {
-  const handleChange = (e) => {
+import React from 'react';
+
+type UserRole = 'Admin' | 'Supervisor' | 'Guard' | 'All';
+type UserStatus = 'Active' | 'Inactive' | 'All';
+
+interface UserFilterValues {
+  role: UserRole;
+  status: UserStatus;
+  site: string;
+}
+
+interface UserFiltersProps {
+  filters: UserFilterValues;
+  onFilterChange: (filters: UserFilterValues) => void;
+  sites: string[];
+}
+
+export default function UserFilters({
+  filters,
+  onFilterChange,
+  sites,
+}: UserFiltersProps) {
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
+
     onFilterChange({
       ...filters,
       [name]: value,
-    });
+    } as UserFilterValues);
   };
 
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
         <div>
-          <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="role"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Role
           </label>
           <select
@@ -29,8 +58,12 @@ export default function UserFilters({ filters, onFilterChange, sites }) {
             <option value="Guard">Guard</option>
           </select>
         </div>
+
         <div>
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="status"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Status
           </label>
           <select
@@ -45,8 +78,12 @@ export default function UserFilters({ filters, onFilterChange, sites }) {
             <option value="Inactive">Inactive</option>
           </select>
         </div>
+
         <div>
-          <label htmlFor="site" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="site"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Site
           </label>
           <select
@@ -64,6 +101,7 @@ export default function UserFilters({ filters, onFilterChange, sites }) {
             ))}
           </select>
         </div>
+
       </div>
     </div>
   );

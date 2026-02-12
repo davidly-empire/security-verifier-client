@@ -4,7 +4,7 @@ import { useState, useEffect, ChangeEvent, FormEvent } from 'react'
 import {
   createSecurityUser,
   updateSecurityUser,
-} from '../../api/securityUsers'
+} from '../../api/securityUsers.api'
 
 import { SecurityUser } from '@/app/types/securityUser'
 
@@ -21,6 +21,7 @@ export default function UserForm({
   onSave,
   factories,
 }: UserFormProps) {
+
   const [formData, setFormData] = useState<SecurityUser>({
     security_id: '',
     security_name: '',
@@ -34,11 +35,10 @@ export default function UserForm({
       setFormData({
         security_id: user.security_id,
         security_name: user.security_name,
-        security_password: '',
+        security_password: '', // reset password on edit
         factory: user.factory,
       })
     } else {
-      // Reset when adding new user
       setFormData({
         security_id: '',
         security_name: '',
@@ -64,7 +64,7 @@ export default function UserForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
-    // Basic validation
+    // Validation
     if (!formData.security_id.trim()) {
       alert('Security ID required')
       return
@@ -75,7 +75,8 @@ export default function UserForm({
       return
     }
 
-    if (!user && !formData.security_password.trim()) {
+    // Password required only when creating
+    if (!user && !formData.security_password?.trim()) {
       alert('Password required')
       return
     }
@@ -86,8 +87,7 @@ export default function UserForm({
         await updateSecurityUser(user.security_id, {
           security_name: formData.security_name,
           factory: formData.factory,
-
-          ...(formData.security_password
+          ...(formData.security_password?.trim()
             ? { security_password: formData.security_password }
             : {}),
         })
@@ -96,19 +96,20 @@ export default function UserForm({
         await createSecurityUser({
           security_id: formData.security_id,
           security_name: formData.security_name,
-          security_password: formData.security_password,
+          security_password: formData.security_password || '',
           factory: formData.factory,
         })
       }
 
       onSave()
       onClose()
+
     } catch (err: any) {
       console.error('Save error:', err)
 
       alert(
         err?.message ||
-          'Error saving security user. Check console.'
+        'Error saving security user. Check console.'
       )
     }
   }
@@ -125,6 +126,7 @@ export default function UserForm({
           onSubmit={handleSubmit}
           className="space-y-4"
         >
+
           {/* Security ID */}
           <input
             name="security_id"
@@ -150,7 +152,7 @@ export default function UserForm({
           <input
             type="password"
             name="security_password"
-            value={formData.security_password}
+            value={formData.security_password || ''}
             onChange={handleChange}
             className="w-full border p-2 rounded"
             placeholder={
